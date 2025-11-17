@@ -1,0 +1,159 @@
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Editar cliente</h5>
+    <button class="btn btn-light btn-sm" id="btnVolver">
+      <svg class="icon me-1"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-arrow-left"></use></svg>Volver
+    </button>
+  </div>
+  <div class="card-body">
+    <style>
+      .form-section {
+        border: 1px solid var(--cui-border-color, #d8dde6);
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        height: 100%;
+        background: var(--cui-body-bg, #fff);
+      }
+      .form-section-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--cui-body-color, #4f5d75);
+        margin-bottom: 0.85rem;
+      }
+    </style>
+    <form id="formEditarCliente" class="mt-2">
+      <input type="hidden" name="id">
+      <div class="row g-4">
+        <div class="col-12 col-lg-6">
+          <div class="form-section">
+            <div class="form-section-title">Datos fiscales</div>
+            <div class="mb-3">
+              <label class="form-label">Nombre fiscal *</label>
+              <input type="text" class="form-control" name="nombrefiscal" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Nombre comercial</label>
+              <input type="text" class="form-control" name="nombrecomercial">
+            </div>
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label class="form-label">CIF / NIF</label>
+                <input type="text" class="form-control" name="cifnif">
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label">Código interno</label>
+                <input type="number" class="form-control" name="codigo">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="form-section h-100">
+            <div class="form-section-title">Contacto principal</div>
+            <div class="row g-3 mb-3">
+              <div class="col-sm-6">
+                <label class="form-label">Teléfono</label>
+                <input type="text" class="form-control" name="telefono">
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label">Teléfono alternativo</label>
+                <input type="text" class="form-control" name="telefono2">
+              </div>
+            </div>
+            <div class="row g-3 mb-3">
+              <div class="col-sm-6">
+                <label class="form-label">Móvil</label>
+                <input type="text" class="form-control" name="movil">
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label">Correo electrónico</label>
+                <input type="email" class="form-control" name="email">
+              </div>
+            </div>
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label class="form-label">Persona de contacto</label>
+                <input type="text" class="form-control" name="contacto">
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label">Cargo</label>
+                <input type="text" class="form-control" name="cargocontacto">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="form-section">
+            <div class="form-section-title">Ubicación</div>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Dirección</label>
+                <input type="text" class="form-control" name="direccion">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Provincia</label>
+                <input type="text" class="form-control" name="provincia">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Población</label>
+                <input type="text" class="form-control" name="poblacion">
+              </div>
+            </div>
+            <div class="row g-3">
+              <div class="col-sm-4">
+                <label class="form-label">Código postal</label>
+                <input type="text" class="form-control" name="codpostal">
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label">País</label>
+                <input type="text" class="form-control" name="pais">
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label">Código provincia</label>
+                <input type="text" class="form-control" name="codprovincia">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="form-section h-100">
+            <div class="form-section-title">Datos adicionales</div>
+            <div class="row g-3 mb-3">
+              <div class="col-sm-6">
+                <label class="form-label">Empresa</label>
+                <input type="number" class="form-control" name="empresa">
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label">ID Cloud</label>
+                <input type="text" class="form-control" name="idcloud">
+              </div>
+            </div>
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label class="form-label">Fax</label>
+                <input type="text" class="form-control" name="fax">
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label">Web</label>
+                <input type="text" class="form-control" name="web" placeholder="https://">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6 d-flex align-items-end">
+          <div class="w-100">
+            <div class="alert alert-warning small mb-3" role="alert">
+              Modifica únicamente los campos necesarios. El botón de guardar se habilita cuando detectemos cambios.
+            </div>
+            <div class="d-flex flex-wrap gap-2 justify-content-end">
+              <button type="button" class="btn btn-light" onclick="history.back()">Cancelar</button>
+              <button type="submit" class="btn btn-primary px-4" id="btnGuardar" disabled>Guardar cambios</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

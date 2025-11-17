@@ -4,6 +4,7 @@ const { verifyToken, authorizeRoles } = require('../middleware/auth');
 const { ok, fail } = require('../helpers/responses');
 const Pedido = require('../models/Pedido');
 const Cliente = require('../models/Cliente');
+const Albaran = require('../models/Albaran');
 
 const router = express.Router();
 
@@ -19,6 +20,23 @@ router.get('/', verifyToken, authorizeRoles('admin', 'editor'), async (req, res)
     const pedidos = await Pedido.findAll({
       where,
       include: [{ model: Cliente, as: 'cliente', attributes: ['id', 'nombrecomercial', 'telefono'] }],
+      order: [['id', 'DESC']]
+    });
+
+    return ok(res, pedidos);
+  } catch (err) {
+    return fail(res, 500, err.message);
+  }
+});
+
+/** 📦 GET /api/pedidos/con-albaran */
+router.get('/con-albaran', verifyToken, authorizeRoles('admin', 'editor'), async (req, res) => {
+  try {
+    const pedidos = await Pedido.findAll({
+      include: [
+        { model: Cliente, as: 'cliente', attributes: ['id', 'nombrecomercial', 'telefono'] },
+        { model: Albaran, as: 'albaranes', attributes: ['id', 'serie', 'nalbaran'], required: true }
+      ],
       order: [['id', 'DESC']]
     });
 

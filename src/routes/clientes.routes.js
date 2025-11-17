@@ -3,6 +3,7 @@ const express = require('express');
 const { verifyToken, authorizeRoles } = require('../middleware/auth');
 const { ok, fail } = require('../helpers/responses');
 const Cliente = require('../models/Cliente');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
@@ -12,6 +13,24 @@ router.get('/', verifyToken, authorizeRoles('admin', 'editor'), async (_req, res
     const clientes = await Cliente.findAll({ order: [['id', 'DESC']] });
     return ok(res, clientes);
   } catch (err) { return fail(res, 500, err.message); }
+});
+/** Buscar clientes por texto (para autocompletado) */
+router.get('/buscar', verifyToken, authorizeRoles('admin', 'editor'), async (req, res) => {
+  try {
+    const texto = req.query.texto || "";
+
+    const clientes = await Cliente.findAll({
+      where: {
+        nombrefiscal: { [Op.like]: `%${texto}%` }
+      },
+      limit: 20,
+      order: [['nombrefiscal', 'ASC']]
+    });
+
+    return ok(res, clientes);
+  } catch (err) {
+    return fail(res, 500, err.message);
+  }
 });
 
 /** Obtener por ID */

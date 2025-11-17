@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { auth } = require('../config/env');
@@ -22,6 +22,13 @@ router.post('/login', async (req, res) => {
 
     // Opcional: persistir token y fecha (tu tabla ya dispone de campos)
     await Usuario.update({ token, datetoken: new Date() }, { where: { id: user.id } });
+    res.cookie('token', token, {
+      httpOnly: true,   // No accesible desde JS
+      secure: false,    // true si usas HTTPS
+      sameSite: 'lax',
+      path: '/',        // disponible en toda la app
+      maxAge: 8 * 60 * 60 * 1000 // 8 horas
+    });
 
     return ok(res, { token, user: payload }, 'Login correcto');
   } catch (err) {

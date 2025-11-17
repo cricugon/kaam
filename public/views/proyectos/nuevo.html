@@ -1,0 +1,133 @@
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Nuevo proyecto</h5>
+    <button class="btn btn-light btn-sm" id="btnVolver">
+      <svg class="icon me-1">
+        <use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-arrow-left"></use>
+      </svg>
+      Volver
+    </button>
+  </div>
+
+  <div class="card-body">
+    <form id="formNuevoProyecto">
+
+      <div class="row mb-3">
+       <div class="col-md-6 mb-3 position-relative">
+          <label class="form-label">Cliente *</label>
+
+          <!-- Input visible para buscar -->
+          <input type="text" class="form-control" id="clienteInput" placeholder="Buscar cliente..." autocomplete="off">
+
+          <!-- Campo oculto obligatorio -->
+          <input type="hidden" name="idcliente" id="idcliente" required>
+
+          <!-- Sugerencias -->
+          <div id="clienteSuggestions" 
+              class="list-group position-absolute w-100 shadow" 
+              style="z-index: 999; max-height: 200px; overflow-y: auto;">
+          </div>
+      </div>
+        <div class="col-md-6">
+          <label class="form-label">Nombre del proyecto *</label>
+          <input type="text" class="form-control" name="nombreproyecto" required>
+        </div>
+      </div>
+
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <label class="form-label">Código proyecto</label>
+          <input type="text" class="form-control" name="codigoproyecto">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">CIF/NIF</label>
+          <input type="text" class="form-control" name="cifnif">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">País</label>
+          <input type="text" class="form-control" name="pais">
+        </div>
+      </div>
+
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Dirección</label>
+          <input type="text" class="form-control" name="direccion">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Código postal</label>
+          <input type="text" class="form-control" name="codpostal">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Provincia</label>
+          <input type="text" class="form-control" name="provincia">
+        </div>
+      </div>
+
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Población</label>
+          <input type="text" class="form-control" name="poblacion">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-control" name="email">
+        </div>
+      </div>
+
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <label class="form-label">Teléfono</label>
+          <input type="text" class="form-control" name="telefono">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Teléfono 2</label>
+          <input type="text" class="form-control" name="telefono2">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Móvil</label>
+          <input type="text" class="form-control" name="movil">
+        </div>
+      </div>
+
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Contacto</label>
+          <input type="text" class="form-control" name="contacto">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Cargo del contacto</label>
+          <input type="text" class="form-control" name="cargocontacto">
+        </div>
+      </div>
+
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Web</label>
+          <input type="text" class="form-control" name="web">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Latitud</label>
+          <input type="text" class="form-control" name="coord_latitud">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Longitud</label>
+          <input type="text" class="form-control" name="coord_longitud">
+        </div>
+      </div>
+
+      <button id="btnCrearProyecto" class="btn btn-primary" disabled>Crear proyecto</button>
+
+    </form>
+  </div>
+</div>
