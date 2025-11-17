@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const { auth } = require('./config/env');
 const { verifyToken } = require('./middleware/auth');
 const Usuario = require('./models/Usuario');
+const modulesConfig = require('./config/modules');
 
 const authRoutes = require('./routes/auth.routes');
 const usuariosRoutes = require('./routes/usuarios.routes');
@@ -14,6 +15,8 @@ const pedidosRoutes = require('./routes/pedidos.routes');
 const proyectosRoutes = require('./routes/proyectos.routes');
 const albaranesRoutes = require('./routes/albaranes.routes');
 const trabajadoresRoutes = require('./routes/trabajadores.routes');
+const materialesRoutes = require('./routes/materiales.routes');
+const peticionesMaterialRoutes = require('./routes/peticionesmaterial.routes'); // new
 
 const app = express();
 
@@ -43,15 +46,25 @@ app.get('/', async (req, res) => {
   res.sendFile(path.join(__dirname, '../public/login.html'));
 });
 
+// Endpoint para que el front sepa qué módulos mostrar (protegido)
+app.get('/api/config/modules', verifyToken, (_req, res) =>
+  res.json({ success: true, modules: modulesConfig })
+);
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuariosRoutes);
-app.use('/api/clientes', clientesRoutes);
-app.use('/api/pedidos', pedidosRoutes);
-app.use('/api/proyectos', proyectosRoutes);
-app.use('/api/albaranes', albaranesRoutes);
-app.use('/api/trabajadores', trabajadoresRoutes);
-
+if (modulesConfig.clientes) app.use('/api/clientes', clientesRoutes);
+if (modulesConfig.proyectos) app.use('/api/proyectos', proyectosRoutes);
+if (modulesConfig.pedidos) {
+  app.use('/api/pedidos', pedidosRoutes);
+  app.use('/api/albaranes', albaranesRoutes);
+}
+if (modulesConfig.trabajadores) app.use('/api/trabajadores', trabajadoresRoutes);
+if (modulesConfig.materiales) {
+  app.use('/api/materiales', materialesRoutes);
+  app.use('/api/peticiones-material', peticionesMaterialRoutes);
+}
 // Ruta de test
 app.get('/health', (_req, res) => res.json({ ok: true }));
 

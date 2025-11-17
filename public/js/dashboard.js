@@ -1,3 +1,24 @@
+let modulesConfig = { clientes: true, proyectos: true, pedidos: true, trabajadores: true };
+async function loadModulesConfig() {
+  try {
+    const res = await fetch('/api/config/modules', { credentials: 'same-origin' });
+    const data = await res.json();
+    if (data.success && data.modules) modulesConfig = data.modules;
+  } catch (err) {
+    console.warn('No se pudo cargar configuración de módulos', err);
+  }
+
+  // Oculta los ítems de menú deshabilitados
+  document.querySelectorAll('[data-view]').forEach(link => {
+    const v = link.getAttribute('data-view');
+    if (modulesConfig[v] === false) link.closest('li')?.classList.add('d-none');
+  });
+}
+
+function firstEnabledView() {
+  const order = ['clientes', 'proyectos', 'pedidos', 'trabajadores'];
+  return order.find(v => modulesConfig[v] !== false);
+}
 // === Cargar una vista HTML dinámica ===
 async function loadView(view) {
   // Si el view incluye subcarpeta, asumimos que viene tipo "clientes/nuevo"
@@ -12,6 +33,8 @@ async function loadView(view) {
 // === Navegación SPA con historial ===
 async function navigateTo(view, headers, push = true) {
   try {
+    if (modulesConfig[view] === false) throw new Error(`Módulo ${view} deshabilitado`);
+
     await loadView(view);
 
     // Cargar la lógica específica según vista
@@ -38,6 +61,17 @@ async function navigateTo(view, headers, push = true) {
     if (view === 'pedidos/albaranes/nuevo') initNuevoAlbaranForm(headers);
     if (view === 'pedidos/albaranes/editar') console.log('Vista editar albarán cargada');
 
+    if (view === 'trabajadores') await initTrabajadores(headers);
+    if (view === 'trabajadores/nuevo') initNuevoTrabajadorForm(headers);
+    if (view === 'trabajadores/editar') initEditarTrabajadorForm(headers);
+
+
+    if (view === 'materiales') await initMateriales(headers);
+    if (view === 'materiales/nuevo') initNuevoMaterialForm(headers);
+    if (view === 'materiales/editar') initEditarMaterialForm(headers);
+    if (view === 'materiales/peticiones/index') await initPeticionesMaterial(headers);
+
+
 
 
     // Guardar en historial
@@ -54,6 +88,7 @@ document.querySelectorAll('[data-view]').forEach(link => {
   link.addEventListener('click', async e => {
     e.preventDefault();
     const view = e.target.closest('[data-view]').getAttribute('data-view');
+    if (modulesConfig[view] === false) return alert('Módulo deshabilitado');
     const headers = {};
   await navigateTo(view, headers, true);
   });
@@ -739,9 +774,290 @@ document.addEventListener('click', (e) => {
         history.back();
     }
 });
+////////////////////////////////////////////////////////////////////// TRABAJADORES //////////////////////////////////////////////////////////////////////////////////
+
+// Listado de trabajadores
+async function initTrabajadores(headers) {
+  const tbody = document.querySelector('#tablaTrabajadores tbody');
+  if (!tbody) {
+    console.error('No se encontró la tabla de trabajadores en la vista cargada');
+    return;
+  }
+
+  const res = await fetch('/api/trabajadores', { headers });
+  const trabajadores = await res.json();
+
+  tbody.innerHTML = trabajadores.data.map(t => `
+    <tr>
+      <td>${t.id}</td>
+      <td>${t.nombrefiscal || t.nombrecomercial || ''}</td>
+      <td>${t.telefono || t.movil || ''}</td>
+      <td>${t.email || ''}</td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-light border btn-editar" data-id="${t.id}">
+          <svg class="icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-pencil"></use></svg>
+        </button>
+        <button class="btn btn-sm btn-light border text-danger btn-eliminar" data-id="${t.id}">
+          <svg class="icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-trash"></use></svg>
+        </button>
+      </td>
+    </tr>
+  `).join('');
+
+  // Nuevo
+  const nuevoBtn = document.getElementById('nuevoTrabajadorBtn');
+  if (nuevoBtn) {
+    nuevoBtn.addEventListener('click', async () => {
+      await navigateTo('trabajadores/nuevo', headers);
+    });
+  }
+
+  // Editar
+  tbody.querySelectorAll('.btn-editar').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const resItem = await fetch(`/api/trabajadores/${id}`, { headers });
+      const data = await resItem.json();
+      if (!data.data) return alert('No se pudo cargar el trabajador');
+      sessionStorage.setItem('trabajadorEdit', JSON.stringify(data.data));
+      await navigateTo('trabajadores/editar', headers);
+    });
+  });
+
+  // Eliminar
+  tbody.querySelectorAll('.btn-eliminar').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      if (!confirm('¿Eliminar trabajador?')) return;
+      await fetch(`/api/trabajadores/${id}`, { method: 'DELETE', headers });
+      await navigateTo('trabajadores', headers, false);
+    });
+  });
+}
+
+// Formulario nuevo trabajador
+function initNuevoTrabajadorForm(headers) {
+  const form = document.getElementById('formNuevoTrabajador');
+  if (!form) return;
+
+  const btnsVolver = [
+    document.getElementById('volverTrabajadoresBtn'),
+    document.getElementById('volverTrabajadoresBtnBottom')
+  ].filter(Boolean);
+  btnsVolver.forEach(btn => btn.addEventListener('click', () => navigateTo('trabajadores', headers)));
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const res = await fetch('/api/trabajadores', {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.success) return alert(json.message || 'Error al crear');
+    alert('Trabajador creado');
+    await navigateTo('trabajadores', headers);
+  });
+}
+
+// Formulario editar trabajador
+function initEditarTrabajadorForm(headers) {
+  const form = document.getElementById('formEditarTrabajador');
+  const data = JSON.parse(sessionStorage.getItem('trabajadorEdit') || 'null');
+  if (!form || !data) return;
+
+  // Prefill
+  Object.keys(data).forEach(k => {
+    const input = form.querySelector(`[name="${k}"]`);
+    if (input) input.value = data[k] ?? '';
+  });
+
+  const btnsVolver = [
+    document.getElementById('btnVolver'),
+    document.getElementById('btnVolverBottom')
+  ].filter(Boolean);
+  btnsVolver.forEach(btn => btn.addEventListener('click', () => navigateTo('trabajadores', headers)));
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const res = await fetch(`/api/trabajadores/${data.id}`, {
+      method: 'PUT',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.success) return alert(json.message || 'Error al actualizar');
+    alert('Trabajador actualizado');
+    await navigateTo('trabajadores', headers);
+  });
+}
+
+////////////////////////////////////////////////////////////////////// MATERIALES //////////////////////////////////////////////////////////////////////////////////
+async function initMateriales(headers) {
+  const tbody = document.querySelector('#tablaMateriales tbody');
+  if (!tbody) return;
+  const res = await fetch('/api/materiales', { headers });
+  const json = await res.json();
+  const items = json.data || [];
+
+  tbody.innerHTML = items.map(m => `
+    <tr>
+      <td>${m.id}</td>
+      <td>${m.descripcion || ''}</td>
+      <td>${m.idcloud || ''}</td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-light border btn-editar" data-id="${m.id}">
+          <svg class="icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-pencil"></use></svg>
+        </button>
+        <button class="btn btn-sm btn-light border text-danger btn-eliminar" data-id="${m.id}">
+          <svg class="icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-trash"></use></svg>
+        </button>
+      </td>
+    </tr>
+  `).join('');
+
+  document.getElementById('nuevoMaterialBtn')?.addEventListener('click', async () => {
+    await navigateTo('materiales/nuevo', headers);
+  });
+
+  tbody.querySelectorAll('.btn-editar').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const resItem = await fetch(`/api/materiales/${id}`, { headers });
+      const data = await resItem.json();
+      if (!data.data) return alert('No se pudo cargar el material');
+      sessionStorage.setItem('materialEdit', JSON.stringify(data.data));
+      await navigateTo('materiales/editar', headers);
+    });
+  });
+
+  tbody.querySelectorAll('.btn-eliminar').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      if (!confirm('¿Eliminar material?')) return;
+      await fetch(`/api/materiales/${id}`, { method: 'DELETE', headers });
+      await navigateTo('materiales', headers, false);
+    });
+  });
+}
+
+function initNuevoMaterialForm(headers) {
+  const form = document.getElementById('formNuevoMaterial');
+  if (!form) return;
+
+  [document.getElementById('volverMaterialesBtn'), document.getElementById('volverMaterialesBtnBottom')]
+    .filter(Boolean)
+    .forEach(btn => btn.addEventListener('click', () => navigateTo('materiales', headers)));
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const res = await fetch('/api/materiales', {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.success) return alert(json.message || 'Error al crear material');
+    alert('Material creado');
+    await navigateTo('materiales', headers);
+  });
+}
+
+function initEditarMaterialForm(headers) {
+  const form = document.getElementById('formEditarMaterial');
+  const data = JSON.parse(sessionStorage.getItem('materialEdit') || 'null');
+  if (!form || !data) return;
+
+  Object.keys(data).forEach(k => {
+    const input = form.querySelector(`[name="${k}"]`);
+    if (input) input.value = data[k] ?? '';
+  });
+
+  [document.getElementById('btnVolver'), document.getElementById('btnVolverBottom')]
+    .filter(Boolean)
+    .forEach(btn => btn.addEventListener('click', () => navigateTo('materiales', headers)));
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const res = await fetch(`/api/materiales/${data.id}`, {
+      method: 'PUT',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.success) return alert(json.message || 'Error al actualizar material');
+    alert('Material actualizado');
+    await navigateTo('materiales', headers);
+  });
+}
+async function initPeticionesMaterial(headers) {
+  const tbody = document.querySelector('#tablaPeticionesMaterial tbody');
+  if (!tbody) return;
+  const res = await fetch('/api/peticiones-material', { headers });
+  const json = await res.json();
+  const items = json.data || [];
+
+  tbody.innerHTML = items.map(p => {
+    const estado = p.cancelada
+      ? 'Anulada'
+      : p.firmado
+        ? 'Firmada'
+        : p.recibido
+          ? 'Validada'
+          : 'Pendiente';
+
+    const disableValidar = p.recibido || p.cancelada || p.firmado;
+    const disableAnular = p.cancelada || p.firmado;
+
+    return `
+      <tr>
+        <td>${p.id}</td>
+        <td>${p.material?.descripcion || ''}</td>
+        <td>${p.trabajador?.nombrefiscal || p.trabajador?.nombrecomercial || ''}</td>
+        <td>${p.unidades || ''}</td>
+        <td>${estado}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-success me-1 btn-validar" data-id="${p.id}" ${disableValidar ? 'disabled' : ''}>Validar</button>
+          <button class="btn btn-sm btn-secondary btn-anular" data-id="${p.id}" ${disableAnular ? 'disabled' : ''}>Anular</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.querySelectorAll('.btn-validar').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+       if (!confirm('¿Validar esta petición?')) return;
+      await fetch(`/api/peticiones-material/${id}`, {
+        method: 'PUT',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recibido: 1 })
+      });
+      initPeticionesMaterial(headers); // recargar
+    });
+  });
+
+  tbody.querySelectorAll('.btn-anular').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      if (!confirm('¿Anular petición?')) return;
+      await fetch(`/api/peticiones-material/${id}`, {
+        method: 'PUT',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cancelada: 1 })
+      });
+      initPeticionesMaterial(headers);
+    });
+  });
+}
 
 // === Cargar vista según hash al abrir página ===
 window.addEventListener('load', async () => {
+  await loadModulesConfig();
   const hash = location.hash.replace('#/', '');
   const view = hash || 'clientes';
   const headers = {};
@@ -766,3 +1082,4 @@ window.addEventListener('load', async () => {
     }
   });
 })();
+

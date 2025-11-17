@@ -1,0 +1,27 @@
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Editar material</h5>
+    <button class="btn btn-light btn-sm" id="btnVolver">
+      <svg class="icon me-1"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-arrow-left"></use></svg>Volver
+    </button>
+  </div>
+  <div class="card-body">
+    <form id="formEditarMaterial" class="row g-4">
+      <input type="hidden" name="id" id="materialId">
+      <div class="col-12 col-lg-6">
+        <div class="mb-3">
+          <label class="form-label">Descripción</label>
+          <input type="text" class="form-control" name="descripcion" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">ID Cloud</label>
+          <input type="text" class="form-control" name="idcloud">
+        </div>
+      </div>
+      <div class="col-12 d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-light" id="btnVolverBottom">Cancelar</button>
+        <button type="submit" class="btn btn-primary px-4">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
