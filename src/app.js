@@ -13,6 +13,7 @@ const clientesRoutes = require('./routes/clientes.routes');
 const pedidosRoutes = require('./routes/pedidos.routes');
 const proyectosRoutes = require('./routes/proyectos.routes');
 const albaranesRoutes = require('./routes/albaranes.routes');
+const trabajadoresRoutes = require('./routes/trabajadores.routes');
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use('/api/clientes', clientesRoutes);
 app.use('/api/pedidos', pedidosRoutes);
 app.use('/api/proyectos', proyectosRoutes);
 app.use('/api/albaranes', albaranesRoutes);
+app.use('/api/trabajadores', trabajadoresRoutes);
 
 // Ruta de test
 app.get('/health', (_req, res) => res.json({ ok: true }));
