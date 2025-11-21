@@ -17,6 +17,7 @@ const albaranesRoutes = require('./routes/albaranes.routes');
 const trabajadoresRoutes = require('./routes/trabajadores.routes');
 const materialesRoutes = require('./routes/materiales.routes');
 const peticionesMaterialRoutes = require('./routes/peticionesmaterial.routes'); // new
+const fichajesRoutes = require('./routes/fichajes.routes');
 
 const app = express();
 
@@ -65,6 +66,7 @@ if (modulesConfig.materiales) {
   app.use('/api/materiales', materialesRoutes);
   app.use('/api/peticiones-material', peticionesMaterialRoutes);
 }
+if (modulesConfig.fichajes) app.use('/api/fichajes', fichajesRoutes);
 // Ruta de test
 app.get('/health', (_req, res) => res.json({ ok: true }));
 

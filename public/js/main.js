@@ -8,6 +8,7 @@
  */
 
 // Disable the on-canvas tooltip
+/*
 Chart.defaults.pointHitDetectionRadius = 1;
 Chart.defaults.plugins.tooltip.enabled = false;
 Chart.defaults.plugins.tooltip.mode = 'index';
@@ -27,6 +28,7 @@ document.documentElement.addEventListener('ColorSchemeChange', () => {
   mainChart.update();
 });
 const random = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
+
 const cardChart1 = new Chart(document.getElementById('card-chart1'), {
   type: 'line',
   data: {
@@ -308,3 +310,4 @@ const mainChart = new Chart(document.getElementById('main-chart'), {
   }
 });
 //# sourceMappingURL=main.js.map
+*/

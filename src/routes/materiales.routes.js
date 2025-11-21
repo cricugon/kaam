@@ -6,28 +6,28 @@ const Material = require('../models/Material');
 
 const router = express.Router();
 const protect = [verifyToken, authorizeRoles('admin', 'editor')];
-
-// Listar todos
-router.get('/', protect, async (_req, res) => {
+// Lectura disponible también para trabajadores
+const readProtect = [verifyToken, authorizeRoles('admin', 'editor', 'trabajador')];
+// GET /api/materiales (catálogo completo)
+router.get('/', readProtect, async (_req, res) => {
   try {
-    const items = await Material.findAll({ order: [['id', 'DESC']] });
-    return ok(res, items);
+    const materiales = await Material.findAll({ order: [['id', 'DESC']] });
+    return ok(res, materiales);
   } catch (err) {
     return fail(res, 500, err.message);
   }
 });
 
-// Obtener uno por ID
-router.get('/:id', protect, async (req, res) => {
+// GET /api/materiales/:id
+router.get('/:id', readProtect, async (req, res) => {
   try {
-    const item = await Material.findByPk(req.params.id);
-    if (!item) return fail(res, 404, 'Material no encontrado');
-    return ok(res, item);
+    const material = await Material.findByPk(req.params.id);
+    if (!material) return fail(res, 404, 'Material no encontrado');
+    return ok(res, material);
   } catch (err) {
     return fail(res, 500, err.message);
   }
 });
-
 // Crear
 router.post('/', protect, async (req, res) => {
   try {

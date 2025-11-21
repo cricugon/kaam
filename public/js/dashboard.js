@@ -1,4 +1,25 @@
-let modulesConfig = { clientes: true, proyectos: true, pedidos: true, trabajadores: true };
+﻿let currentUserRole = null;
+let currentUser = null;
+async function loadCurrentUser() {
+  try {
+    const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+    const data = await res.json();
+    if (data.success) {
+      currentUser = data.data;
+      currentUserRole = currentUser?.rol;
+  }
+  } catch (err) {
+    console.warn('No se pudo obtener el usuario actual', err);
+  }
+}
+let modulesConfig = {
+  clientes: true,
+  proyectos: true,
+  pedidos: true,
+  trabajadores: true,
+  materiales: true,
+  fichajes: true
+};
 async function loadModulesConfig() {
   try {
     const res = await fetch('/api/config/modules', { credentials: 'same-origin' });
@@ -16,7 +37,7 @@ async function loadModulesConfig() {
 }
 
 function firstEnabledView() {
-  const order = ['clientes', 'proyectos', 'pedidos', 'trabajadores'];
+  const order = ['clientes', 'proyectos', 'pedidos', 'trabajadores',"fichajes"];
   return order.find(v => modulesConfig[v] !== false);
 }
 // === Cargar una vista HTML dinámica ===
@@ -34,6 +55,11 @@ async function loadView(view) {
 async function navigateTo(view, headers, push = true) {
   try {
     if (modulesConfig[view] === false) throw new Error(`Módulo ${view} deshabilitado`);
+    if (currentUserRole === 'trabajador') {
+      const prohibidas = ['clientes', 'proyectos', 'pedidos', 'trabajadores', 'materiales', 'materiales/nuevo', 'materiales/editar']; // deja solo las que quieras permitir, por ejemplo peticiones;
+      if (prohibidas.includes(view)) throw new Error('Módulo deshabilitado para tu rol');
+    }
+
 
     await loadView(view);
 
@@ -70,6 +96,12 @@ async function navigateTo(view, headers, push = true) {
     if (view === 'materiales/nuevo') initNuevoMaterialForm(headers);
     if (view === 'materiales/editar') initEditarMaterialForm(headers);
     if (view === 'materiales/peticiones/index') await initPeticionesMaterial(headers);
+    if (view === 'materiales/peticiones/nuevo') initNuevoPeticionMaterialForm(headers);
+
+    
+    if (view === 'fichajes/fichar') await initFichajesFichar(headers);
+    if (view === 'fichajes/listado') await initFichajesListado(headers);
+
 
 
 
@@ -84,13 +116,36 @@ async function navigateTo(view, headers, push = true) {
 }
 
 // === Clicks de menú lateral ===
-document.querySelectorAll('[data-view]').forEach(link => {
+document.querySelectorAll('a[data-view]').forEach(link => {
   link.addEventListener('click', async e => {
     e.preventDefault();
-    const view = e.target.closest('[data-view]').getAttribute('data-view');
-    if (modulesConfig[view] === false) return alert('Módulo deshabilitado');
+    const view = e.currentTarget.getAttribute('data-view');
+    if (currentUserRole === 'trabajador') {
+      const prohibidas = ['clientes', 'proyectos', 'pedidos', 'trabajadores', 'materiales', 'materiales/nuevo', 'materiales/editar'];
+      if (prohibidas.includes(view)) {
+        alert('No tienes acceso a este módulo');
+        return;
+      }
+    }
     const headers = {};
-  await navigateTo(view, headers, true);
+    await navigateTo(view, headers, true);
+  });
+});
+// Toggle manual del submenú de Materiales
+const toggleMaterialesBtn = document.getElementById('toggleMateriales');
+toggleMaterialesBtn?.addEventListener('click', () => {
+  const submenu = document.getElementById('materialesSubmenu');
+  const icon = document.getElementById('toggleMaterialesIcon');
+  if (!submenu) return;
+  submenu.classList.toggle('show');
+  if (icon) icon.textContent = submenu.classList.contains('show') ? '▴' : '▾';
+});
+// Desplegar manualmente los grupos del menú
+document.querySelectorAll('.nav-group-toggle').forEach(toggle => {
+  toggle.addEventListener('click', e => {
+    e.preventDefault();
+    const parent = toggle.closest('.nav-group');
+    parent?.classList.toggle('show');
   });
 });
 
@@ -995,9 +1050,29 @@ function initEditarMaterialForm(headers) {
   });
 }
 async function initPeticionesMaterial(headers) {
+  let firmaPad = null;
+let firmaModal = null;
+let firmaPeticionId = null;
+  if (!currentUser) {
+  await loadCurrentUser(); // fetch /api/auth/me
+    }
+    const nuevaPeticionBtn = document.getElementById('nuevaPeticionMaterialBtn');
+    if (currentUserRole === 'trabajador') {
+      nuevaPeticionBtn?.classList.remove('d-none');
+      nuevaPeticionBtn?.addEventListener('click', () => navigateTo('materiales/peticiones/nuevo', headers));
+    } else {
+      nuevaPeticionBtn?.classList.add('d-none');
+    }
+
+
   const tbody = document.querySelector('#tablaPeticionesMaterial tbody');
   if (!tbody) return;
-  const res = await fetch('/api/peticiones-material', { headers });
+  let url = '/api/peticiones-material';
+  if (currentUserRole === 'trabajador' && currentUser?.idpersonal) {
+    url = `/api/peticiones-material/trabajador/${currentUser.idpersonal}`;
+  }
+
+  const res = await fetch(url, { headers, credentials: 'same-origin' });
   const json = await res.json();
   const items = json.data || [];
 
@@ -1009,42 +1084,138 @@ async function initPeticionesMaterial(headers) {
         : p.recibido
           ? 'Validada'
           : 'Pendiente';
-
+    const isWorker = currentUserRole === 'trabajador';
     const disableValidar = p.recibido || p.cancelada || p.firmado;
     const disableAnular = p.cancelada || p.firmado;
+    const disableAnularWorker = estado !== 'Pendiente';
+    const disableFirmarWorker = estado !== 'Validada';
 
-    return `
-      <tr>
-        <td>${p.id}</td>
-        <td>${p.material?.descripcion || ''}</td>
-        <td>${p.trabajador?.nombrefiscal || p.trabajador?.nombrecomercial || ''}</td>
-        <td>${p.unidades || ''}</td>
-        <td>${estado}</td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-success me-1 btn-validar" data-id="${p.id}" ${disableValidar ? 'disabled' : ''}>Validar</button>
-          <button class="btn btn-sm btn-secondary btn-anular" data-id="${p.id}" ${disableAnular ? 'disabled' : ''}>Anular</button>
-        </td>
-      </tr>
-    `;
+
+
+    if (isWorker) {
+  return `
+    <tr>
+      <td>${p.id}</td>
+      <td>${p.material?.descripcion || ''}</td>
+      <td>${p.trabajador?.nombrefiscal || p.trabajador?.nombrecomercial || ''}</td>
+      <td>${p.unidades || ''}</td>
+      <td>${estado}</td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-secondary me-1 btn-anular-worker" data-id="${p.id}" ${disableAnularWorker ? 'disabled' : ''}>Anular</button>
+        <button class="btn btn-sm btn-success btn-firmar-worker" data-id="${p.id}" ${disableFirmarWorker ? 'disabled' : ''}>Firmar</button>
+      </td>
+    </tr>
+  `;
+}
+const isFirmada = estado === 'Firmada' && p.firma;
+if (isFirmada) {
+  return `
+    <tr>
+      <td>${p.id}</td>
+      <td>${p.material?.descripcion || ''}</td>
+      <td>${p.trabajador?.nombrefiscal || p.trabajador?.nombrecomercial || ''}</td>
+      <td>${p.unidades || ''}</td>
+      <td>${estado}</td>
+      
+      <td class="text-end">
+        <button class="btn btn-sm btn-info btn-ver-firma" data-firma="${p.firma}">Ver firma</button>
+      </td>
+    </tr>`;
+}
+return `
+  <tr>
+    <td>${p.id}</td>
+    <td>${p.material?.descripcion || ''}</td>
+    <td>${p.trabajador?.nombrefiscal || p.trabajador?.nombrecomercial || ''}</td>
+    <td>${p.unidades || ''}</td>
+    <td>${estado}</td>
+    <td class="text-end">
+      <button class="btn btn-sm btn-success me-1 btn-validar" data-id="${p.id}" ${disableValidar ? 'disabled' : ''}>Validar</button>
+      <button class="btn btn-sm btn-secondary btn-anular" data-id="${p.id}" ${disableAnular ? 'disabled' : ''}>Anular</button>
+    </td>
+  </tr>
+`;
+
   }).join('');
 
-  tbody.querySelectorAll('.btn-validar').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.dataset.id;
-       if (!confirm('¿Validar esta petición?')) return;
-      await fetch(`/api/peticiones-material/${id}`, {
-        method: 'PUT',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recibido: 1 })
-      });
-      initPeticionesMaterial(headers); // recargar
+if (currentUserRole === 'trabajador') {
+  const canvas = document.getElementById('firmaCanvas');
+  const ctx = canvas?.getContext('2d');
+  let drawing = false;
+
+  const startDraw = (x, y) => {
+    drawing = true;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+  const draw = (x, y) => {
+    if (!drawing) return;
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+  const stopDraw = () => drawing = false;
+
+  const getPos = e => {
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches) {
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top
+      };
+    }
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+  };
+
+  // Eventos de dibujo
+  canvas?.addEventListener('mousedown', e => startDraw(...Object.values(getPos(e))));
+  canvas?.addEventListener('mousemove', e => draw(...Object.values(getPos(e))));
+  canvas?.addEventListener('mouseup', stopDraw);
+  canvas?.addEventListener('mouseleave', stopDraw);
+  canvas?.addEventListener('touchstart', e => {
+    e.preventDefault();
+    startDraw(...Object.values(getPos(e)));
+  }, { passive: false });
+  canvas?.addEventListener('touchmove', e => {
+    e.preventDefault();
+    draw(...Object.values(getPos(e)));
+  }, { passive: false });
+  canvas?.addEventListener('touchend', stopDraw);
+
+  document.getElementById('btnLimpiarFirma')?.addEventListener('click', () => {
+    ctx?.clearRect(0, 0, canvas.width, canvas.height);
+  });
+
+  document.getElementById('btnGuardarFirma')?.addEventListener('click', async () => {
+    if (!canvas || !firmaPeticionId) return;
+    const firmaBase64 = canvas.toDataURL('image/png');
+    await fetch(`/api/peticiones-material/${firmaPeticionId}`, {
+      method: 'PUT',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firmado: 1, firma: firmaBase64 })
+    });
+    // Cierra modal y recarga
+    coreui.Modal.getInstance(document.getElementById('modalFirma'))?.hide();
+
+    initPeticionesMaterial(headers);
+  });
+
+  // Botones “Firmar”
+  tbody.querySelectorAll('.btn-firmar-worker').forEach(btn => {
+    btn.addEventListener('click', () => {
+      firmaPeticionId = btn.dataset.id;
+      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+      new coreui.Modal(document.getElementById('modalFirma')).show();
     });
   });
 
-  tbody.querySelectorAll('.btn-anular').forEach(btn => {
+  // Botones “Anular”
+  tbody.querySelectorAll('.btn-anular-worker').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const id = btn.dataset.id;
       if (!confirm('¿Anular petición?')) return;
+      const id = btn.dataset.id;
       await fetch(`/api/peticiones-material/${id}`, {
         method: 'PUT',
         headers: { ...headers, 'Content-Type': 'application/json' },
@@ -1053,17 +1224,549 @@ async function initPeticionesMaterial(headers) {
       initPeticionesMaterial(headers);
     });
   });
+} else {
+  
+  // Listeners originales para admin/editor
+  tbody.querySelectorAll('.btn-validar').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('¿Validar esta petición?')) return;
+      const id = btn.dataset.id;
+      await fetch(`/api/peticiones-material/${id}`, {
+        method: 'PUT',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recibido: 1 })
+      });
+      initPeticionesMaterial(headers);
+    });
+  });
+
+  tbody.querySelectorAll('.btn-anular').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('¿Anular petición?')) return;
+      const id = btn.dataset.id;
+      await fetch(`/api/peticiones-material/${id}`, {
+        method: 'PUT',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cancelada: 1 })
+      });
+      initPeticionesMaterial(headers);
+    });
+  });
+  const modalVerFirma = document.getElementById('modalVerFirma');
+  const imgFirma = document.getElementById('imgFirmaRegistrada');
+
+  tbody.querySelectorAll('.btn-ver-firma').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const firma = btn.dataset.firma;
+      if (!firma) return;
+      imgFirma.src = firma;
+      modalVerFirma.classList.add('is-open'); // la misma clase que usas para abrir el modal de firma
+    });
+  });
+
+  document.getElementById('btnCerrarVerFirma')?.addEventListener('click', () => {
+    modalVerFirma.classList.remove('is-open');
+  });
+
+  modalVerFirma?.addEventListener('click', e => {
+    if (e.target === modalVerFirma) modalVerFirma.classList.remove('is-open');
+  });
+
+}
+
+}
+
+async function initNuevoPeticionMaterialForm(headers) {
+  const form = document.getElementById('formNuevaPeticionMaterial');
+  if (!form) return;
+
+  const selectMaterial = form.querySelector('#materialSelect');
+  const btnVolverArriba = document.getElementById('volverPeticionesBtn');
+  const btnVolverAbajo = document.getElementById('volverPeticionesBtnBottom');
+
+  const volverListado = () => navigateTo('materiales/peticiones/index', headers);
+  btnVolverArriba?.addEventListener('click', volverListado);
+  btnVolverAbajo?.addEventListener('click', volverListado);
+
+  // Cargar catálogo de materiales para el select
+  try {
+    const resMateriales = await fetch('/api/materiales', { headers, credentials: 'same-origin' });
+    const jsonMat = await resMateriales.json();
+    const materiales = jsonMat.data || [];
+    selectMaterial.innerHTML = materiales.map(mat =>
+      `<option value="${mat.id}">${mat.descripcion || `Material #${mat.id}`}</option>`
+    ).join('');
+  } catch (err) {
+    console.error('No se pudo cargar materiales', err);
+    selectMaterial.innerHTML = '<option value="">Sin materiales</option>';
+  }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(form).entries());
+
+    if (!data.idfa_material) {
+      alert('Selecciona el material a solicitar');
+      return;
+    }
+
+    const payload = {
+      descripcion: data.descripcion || '',
+      fecha: data.fecha || null,
+      hora: data.hora || null,
+      idfa_material: Number(data.idfa_material),
+      unidades: data.unidades ? Number(data.unidades) : null,
+      talla: data.talla || '',
+      enviado: data.enviado ? Number(data.enviado) : 0,
+      recibido: 0,
+      firmado: 0,
+      firma: null,
+      idcloud: data.idcloud || null
+    };
+
+    const res = await fetch('/api/peticiones-material', {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload)
+    });
+
+    const json = await res.json();
+    if (!json.success) {
+      alert(json.message || 'Error al crear la petición');
+      return;
+    }
+
+    alert('Petición creada correctamente');
+    volverListado();
+  });
+}
+////////////////////////////////////////////////////////////////////// FICHAJES //////////////////////////////////////////////////////////////////////////////////
+
+const toggleFichajesBtn = document.getElementById('toggleFichajes');
+toggleFichajesBtn?.addEventListener('click', () => {
+  const submenu = document.getElementById('fichajesSubmenu');
+  const icon = document.getElementById('toggleFichajesIcon');
+  if (!submenu) return;
+  submenu.classList.toggle('show');
+  if (icon) icon.textContent = submenu.classList.contains('show') ? '▲' : '▼';
+});
+
+function formatDateShort(dateStr) {
+  if (!dateStr) return '-';
+  try {
+    return new Date(dateStr).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+function formatDateLong(dateStr) {
+  if (!dateStr) return '';
+  try {
+    return new Date(dateStr).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+function secondsFromFichaje(item = {}) {
+  if (Number.isFinite(item.segundos)) return Number(item.segundos);
+  if (Number.isFinite(item.segundos_informe)) return Number(item.segundos_informe);
+  if (!item.hora_inicio || !item.hora_fin) return 0;
+  const toSeconds = (time) => {
+    const [h = 0, m = 0, s = 0] = time.split(':').map(Number);
+    return h * 3600 + m * 60 + (Number.isFinite(s) ? s : 0);
+  };
+  const diff = toSeconds(item.hora_fin) - toSeconds(item.hora_inicio);
+  return diff > 0 ? diff : 0;
+}
+function formatDuration(totalSeconds = 0) {
+  const value = Math.max(0, Math.trunc(totalSeconds));
+  const hours = String(Math.floor(value / 3600)).padStart(2, '0');
+  const minutes = String(Math.floor((value % 3600) / 60)).padStart(2, '0');
+  const seconds = String(value % 60).padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`;
+}
+
+async function initFichajesFichar(headers) {
+  const form = document.getElementById('formNuevoFichaje');
+  const tablaBody = document.getElementById('actividadRecienteBody');
+  if (!form || !tablaBody) return;
+
+  const trabajadorId = currentUser?.idpersonal;
+  if (!trabajadorId) {
+    tablaBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Tu usuario no está vinculado a un trabajador.</td></tr>`;
+    return;
+  }
+
+  let fichajeState = { activo: null, pausaActiva: null };
+  let fichajeTimer = null;
+
+  const tipoButtons = document.querySelectorAll('[data-fichaje-tipo]');
+  const descripcionInput = document.getElementById('descripcionSeleccionada');
+  const fechaTitulo = document.getElementById('tituloDiaFichajes');
+  const totalDiaEl = document.getElementById('totalDiaFichajes');
+  const resumenActividad = document.getElementById('resumenActividadActual');
+  const btnRefrescar = document.getElementById('btnRefrescarActividad');
+  const btnUbicacion = document.getElementById('btnCapturarUbicacion');
+  const latInput = form.querySelector('[name="coord_latitud"]');
+  const lngInput = form.querySelector('[name="coord_longitud"]');
+  const resetBtn = document.getElementById('btnResetFichaje');
+  const btnToggle = document.getElementById('btnToggleFichaje');
+  const btnStop = document.getElementById('btnStopFichaje');
+  const clienteInput = document.getElementById('clienteAutocomplete');
+  const clienteHidden = document.getElementById('clienteSeleccionado');
+  const datalistClientes = document.getElementById('clientesData');
+  const obraInput = document.getElementById('obraAutocomplete');
+  const obraHidden = document.getElementById('obraSeleccionada');
+  const datalistObras = document.getElementById('obrasData');
+
+  const fetchJSON = async (url, options = {}) => {
+    const res = await fetch(url, { credentials: 'same-origin', ...options });
+    return res.json();
+  };
+
+  const setDefaults = () => {
+    const now = new Date();
+    if (!form.fecha.value) form.fecha.value = now.toISOString().slice(0, 10);
+    fechaTitulo.textContent = formatDateLong(form.fecha.value);
+  };
+  setDefaults();
+
+  tipoButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tipoButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      descripcionInput.value = btn.dataset.fichajeTipo;
+    });
+  });
+
+  form.fecha.addEventListener('change', () => {
+    fechaTitulo.textContent = formatDateLong(form.fecha.value);
+    cargarActividad();
+  });
+  resetBtn?.addEventListener('click', () => setTimeout(setDefaults, 0));
+
+  btnUbicacion?.addEventListener('click', () => {
+    if (!navigator.geolocation) return alert('Tu navegador no soporta geolocalización');
+    btnUbicacion.disabled = true;
+    btnUbicacion.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Obteniendo...';
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        if (latInput) latInput.value = pos.coords.latitude.toFixed(6);
+        if (lngInput) lngInput.value = pos.coords.longitude.toFixed(6);
+        btnUbicacion.disabled = false;
+        btnUbicacion.textContent = 'Usar mi ubicación';
+      },
+      err => {
+        alert('No pudimos obtener tu ubicación: ' + err.message);
+        btnUbicacion.disabled = false;
+        btnUbicacion.textContent = 'Usar mi ubicación';
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+
+  const cargarClientes = async () => {
+    try {
+      const res = await fetchJSON('/api/clientes/buscar?texto=');
+      const items = res.data || [];
+      datalistClientes.innerHTML = items.map(c => `<option value="${c.nombrefiscal}" data-id="${c.id}"></option>`).join('');
+    } catch (err) {
+      console.error('No se pudieron cargar clientes', err);
+      datalistClientes.innerHTML = '';
+    }
+  };
+  const cargarObras = async () => {
+    try {
+      const res = await fetchJSON('/api/proyectos/buscar?texto=');
+      const items = res.data || [];
+      datalistObras.innerHTML = items.map(o => `<option value="${o.nombreproyecto}" data-id="${o.id}"></option>`).join('');
+    } catch (err) {
+      console.error('No se pudieron cargar obras', err);
+      datalistObras.innerHTML = '';
+    }
+  };
+  clienteInput?.addEventListener('change', () => {
+    const opt = Array.from(datalistClientes.options).find(o => o.value === clienteInput.value);
+    clienteHidden.value = opt?.dataset.id || '';
+  });
+  obraInput?.addEventListener('change', () => {
+    const opt = Array.from(datalistObras.options).find(o => o.value === obraInput.value);
+    obraHidden.value = opt?.dataset.id || '';
+  });
+  try {
+    await Promise.all([cargarClientes(), cargarObras()]);
+  } catch (err) {
+    console.error('Error inicializando autocompletados de fichajes', err);
+  }
+
+  const findActive = async () => {
+    const res = await fetchJSON(`/api/fichajes/trabajador/${trabajadorId}/activo`);
+    fichajeState.activo = res.data || null;
+    fichajeState.pausaActiva = fichajeState.activo?.pausas?.find(p => !p.hora_fin) || null;
+    pintarEstado();
+  };
+
+  function pintarEstado() {
+    const etiqueta = document.getElementById('estadoFichajeEtiqueta');
+    const detalle = document.getElementById('estadoFichajeDetalle');
+    if (!etiqueta || !btnToggle) return;
+
+    if (!fichajeState.activo) {
+      etiqueta.textContent = 'Sin fichaje activo';
+      detalle.textContent = 'Pulsa “Iniciar fichaje” para comenzar tu jornada.';
+      btnToggle.innerHTML = '<svg class="icon me-2"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-media-play"></use></svg>Iniciar fichaje';
+      btnToggle.classList.remove('btn-warning', 'btn-success');
+      btnToggle.classList.add('btn-primary');
+      btnStop?.classList.add('d-none');
+      clearInterval(fichajeTimer);
+      fichajeTimer = null;
+      return;
+    }
+
+    const desc = fichajeState.activo.descripcion || 'Trabajo';
+    const horaIni = fichajeState.activo.hora_inicio;
+    const pausado = !!fichajeState.pausaActiva;
+
+    etiqueta.textContent = pausado ? `${desc} (pausado)` : `${desc} en curso`;
+    detalle.textContent = `Iniciado ${formatDateShort(fichajeState.activo.fecha)} a las ${horaIni}`;
+    btnStop?.classList.remove('d-none');
+
+    if (pausado) {
+      btnToggle.innerHTML = '<svg class="icon me-2"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-media-play"></use></svg>Reanudar';
+      btnToggle.classList.remove('btn-warning');
+      btnToggle.classList.add('btn-success');
+    } else {
+      btnToggle.innerHTML = '<svg class="icon me-2"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-media-pause"></use></svg>Pausar';
+      btnToggle.classList.remove('btn-primary', 'btn-success');
+      btnToggle.classList.add('btn-warning');
+    }
+
+    if (!fichajeTimer) fichajeTimer = setInterval(() => actualizarTotal(), 1000);
+  }
+
+  const buildPayloadFromForm = () => ({
+    descripcion: descripcionInput.value,
+    fecha: form.fecha.value || null,
+    idcliente: clienteHidden.value ? Number(clienteHidden.value) : null,
+    idobra: obraHidden.value ? Number(obraHidden.value) : null,
+    coord_latitud: form.coord_latitud.value || null,
+    coord_longitud: form.coord_longitud.value || null
+  });
+
+  btnToggle?.addEventListener('click', async () => {
+    try {
+      if (!fichajeState.activo) {
+        const payload = buildPayloadFromForm();
+        const res = await fetchJSON('/api/fichajes/iniciar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.success) throw new Error(res.message);
+      } else if (fichajeState.pausaActiva) {
+        const res = await fetchJSON('/api/fichajes/reanudar', { method: 'POST' });
+        if (!res.success) throw new Error(res.message);
+      } else {
+        const res = await fetchJSON('/api/fichajes/pausar', { method: 'POST' });
+        if (!res.success) throw new Error(res.message);
+      }
+      await findActive();
+      await cargarActividad();
+    } catch (err) {
+      alert(err.message || 'No se pudo actualizar el fichaje.');
+    }
+  });
+
+  btnStop?.addEventListener('click', async () => {
+    if (!confirm('¿Seguro que quieres finalizar el fichaje actual?')) return;
+    const res = await fetchJSON('/api/fichajes/parar', { method: 'POST' });
+    if (!res.success) {
+      alert(res.message || 'No se pudo cerrar el fichaje');
+      return;
+    }
+    await findActive();
+    await cargarActividad();
+  });
+
+  function formatDuration(totalSeconds = 0) {
+    const value = Math.max(0, Math.trunc(totalSeconds));
+    const hh = String(Math.floor(value / 3600)).padStart(2, '0');
+    const mm = String(Math.floor((value % 3600) / 60)).padStart(2, '0');
+    const ss = String(value % 60).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  }
+  function secondsFromFichaje(item = {}) {
+  if (!item) return 0;
+  const toSec = t => {
+    const [h=0,m=0,s=0] = (t || '0:0:0').split(':').map(Number);
+    return h*3600 + m*60 + s;
+  };
+  if (!item.hora_inicio) return 0;
+  const nowStr = new Date().toTimeString().slice(0,8); // HH:MM:SS
+  const endSeconds = item.hora_fin ? toSec(item.hora_fin) : toSec(nowStr);
+  let total = endSeconds - toSec(item.hora_inicio);
+  (item.pausas || []).forEach(p => {
+    if (!p.hora_inicio || !p.hora_fin) return;
+    total -= (toSec(p.hora_fin) - toSec(p.hora_inicio));
+  });
+  return Math.max(0, total);
+}
+
+
+  async function cargarActividad() {
+    tablaBody.innerHTML = `<tr><td colspan="5" class="text-center py-4"><span class="spinner-border"></span></td></tr>`;
+    const res = await fetch(`/api/fichajes/trabajador/${trabajadorId}`, { credentials: 'same-origin' });
+    const json = await res.json();
+    const items = json.data || [];
+
+    if (!items.length) {
+      tablaBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Todavía no tienes fichajes registrados.</td></tr>';
+      totalDiaEl.textContent = '00:00:00';
+      resumenActividad.innerHTML = '<p class="text-muted mb-0">Empieza a fichar para ver tu actividad más reciente aquí.</p>';
+      return;
+    }
+
+    tablaBody.innerHTML = items.slice(0, 10).map(f => `
+      <tr>
+        <td>
+          <div class="fw-semibold">${f.descripcion || '—'}</div>
+          <small class="text-muted">${formatDateShort(f.fecha)}</small>
+        </td>
+        <td>${f.hora_inicio || '--:--'}</td>
+        <td>${f.hora_fin || '--:--'}</td>
+        <td><span class="badge bg-light text-dark">${formatDuration(secondsFromFichaje(f))}</span></td>
+        <td>
+          ${f.cliente?.nombrefiscal ? `<small class="text-muted d-block">${f.cliente.nombrefiscal}</small>` : ''}
+          ${f.obra?.nombreproyecto ? `<small class="text-muted">${f.obra.nombreproyecto}</small>` : ''}
+        </td>
+      </tr>
+    `).join('');
+
+    const ultimo = items[0];
+    resumenActividad.innerHTML = `
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <p class="mb-0 fw-semibold">${ultimo.descripcion || '—'}</p>
+          <small class="text-muted">${formatDateShort(ultimo.fecha)} · ${ultimo.hora_inicio || '--:--'} - ${ultimo.hora_fin || '--:--'}</small>
+        </div>
+        <span class="badge bg-success">${formatDuration(secondsFromFichaje(ultimo))}</span>
+      </div>
+    `;
+
+    actualizarTotal(items);
+  }
+
+  function actualizarTotal(items = []) {
+    const list = items.length ? items : JSON.parse(sessionStorage.getItem('fichajesCache') || '[]');
+    const totalHoy = list
+      .filter(f => f.fecha === form.fecha.value)
+      .reduce((acc, f) => acc + secondsFromFichaje(f), 0);
+    totalDiaEl.textContent = formatDuration(totalHoy);
+  }
+
+  btnRefrescar?.addEventListener('click', e => {
+    e.preventDefault();
+    cargarActividad();
+    findActive();
+  });
+
+  await findActive();
+  await cargarActividad();
+}
+
+
+async function initFichajesListado(headers) {
+  const tablaBody = document.querySelector('#tablaListadoFichajes tbody');
+  const totalEl = document.getElementById('totalHorasListado');
+  const filtros = document.getElementById('filtrosListadoFichajes');
+  if (!tablaBody || !filtros) return;
+
+  let dataset = [];
+
+  const cargar = async () => {
+    let url = '/api/fichajes';
+    if (currentUserRole === 'trabajador' && currentUser?.idpersonal) {
+      url = `/api/fichajes/trabajador/${currentUser.idpersonal}`;
+    }
+    const res = await fetch(url, { headers, credentials: 'same-origin' });
+    const json = await res.json();
+    dataset = json.data || [];
+    render();
+  };
+
+  const render = () => {
+    const data = Object.fromEntries(new FormData(filtros).entries());
+    let rows = [...dataset];
+
+    if (data.desde) rows = rows.filter(f => f.fecha && f.fecha >= data.desde);
+    if (data.hasta) rows = rows.filter(f => f.fecha && f.fecha <= data.hasta);
+    if (data.tipo) rows = rows.filter(f => (f.descripcion || '').toLowerCase() === data.tipo.toLowerCase());
+    if (data.buscar) {
+      const term = data.buscar.toLowerCase();
+      rows = rows.filter(f =>
+        [f.descripcion, f.cliente?.nombrefiscal, f.obra?.nombreproyecto]
+          .some(val => (val || '').toLowerCase().includes(term))
+      );
+    }
+
+    if (!rows.length) {
+      tablaBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No hay fichajes para los filtros seleccionados.</td></tr>';
+    } else {
+      tablaBody.innerHTML = rows.map(f => `
+        <tr>
+          <td>${f.descripcion || '—'}</td>
+          <td>${formatDateShort(f.fecha)}</td>
+          <td>${f.hora_inicio || '--:--'}</td>
+          <td>${f.hora_fin || '--:--'}</td>
+          <td><span class="badge bg-light text-dark">${formatDuration(secondsFromFichaje(f))}</span></td>
+          <td>${f.cliente?.nombrefiscal || '-'}</td>
+          <td>${f.obra?.nombreproyecto || '-'}</td>
+        </tr>
+      `).join('');
+    }
+
+    const totalSeconds = rows.reduce((acc, item) => acc + secondsFromFichaje(item), 0);
+    totalEl.textContent = formatDuration(totalSeconds);
+  };
+
+  filtros.addEventListener('submit', e => {
+    e.preventDefault();
+    render();
+  });
+  filtros.addEventListener('input', e => {
+    if (['tipo', 'buscar'].includes(e.target.name)) render();
+  });
+  document.getElementById('btnResetFiltros')?.addEventListener('click', () => {
+    filtros.reset();
+    render();
+  });
+
+  await cargar();
 }
 
 // === Cargar vista según hash al abrir página ===
 window.addEventListener('load', async () => {
   await loadModulesConfig();
+  await loadCurrentUser();
+  hideMenuForWorker() 
+// después ya usas navigateTo con la vista inicial permitida
+  
+// Llama a hideMenuForWorker() después de loadCurrentUser()
+
   const hash = location.hash.replace('#/', '');
   const view = hash || 'clientes';
   const headers = {};
   await navigateTo(view, headers, false);
 });
-
+function hideMenuForWorker() {
+    if (currentUserRole !== 'trabajador') return;
+    const prohibidas = ['clientes', 'proyectos', 'pedidos', 'trabajadores', 'materiales'];
+    document.querySelectorAll('[data-view]').forEach(a => {
+      const v = a.getAttribute('data-view');
+      if (prohibidas.includes(v)) a.closest('li')?.classList.add('d-none');
+    });
+  }
 // === Logout global ===
 (() => {
   const logoutBtn = document.getElementById('logoutBtn');
@@ -1083,3 +1786,9 @@ window.addEventListener('load', async () => {
   });
 })();
 
+document.addEventListener('DOMContentLoaded', () => {
+  const sidebarEl = document.getElementById('sidebar');
+  if (sidebarEl && window.coreui?.Sidebar) {
+    coreui.Sidebar.getOrCreateInstance(sidebarEl);
+  }
+});

@@ -1,0 +1,80 @@
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Nueva petición de material</h5>
+    <button class="btn btn-light btn-sm" id="volverPeticionesBtn">
+      <svg class="icon me-1"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-arrow-left"></use></svg>Volver
+    </button>
+  </div>
+  <div class="card-body">
+    <form id="formNuevaPeticionMaterial" class="row g-4">
+      <div class="col-12 col-lg-6">
+        <div class="form-section h-100">
+          <div class="form-section-title">Datos generales</div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Descripción</label>
+              <input type="text" class="form-control" name="descripcion" placeholder="Descripción de la petición">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Material</label>
+              <select class="form-select" id="materialSelect" name="idfa_material" required>
+                <option value="">Selecciona un material</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Unidades</label>
+              <input type="number" class="form-control" name="unidades" min="1" value="1">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Talla</label>
+              <input type="text" class="form-control" name="talla" placeholder="Opcional">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-6">
+        <div class="form-section h-100">
+          <div class="form-section-title">Fecha y hora</div>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">Fecha</label>
+              <input type="date" class="form-control" name="fecha">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Hora</label>
+              <input type="time" class="form-control" name="hora">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Observaciones (opcional)</label>
+              <textarea class="form-control" name="idcloud" rows="3" placeholder="Comentario interno o referencia adicional"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-light" id="volverPeticionesBtnBottom">Cancelar</button>
+        <button type="submit" class="btn btn-primary px-4">Guardar petición</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  .form-section {
+    border: 1px solid var(--cui-border-color, #d8dde6);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    height: 100%;
+    background: var(--cui-body-bg, #fff);
+  }
+  .form-section-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--cui-body-color, #0f172a);
+    letter-spacing: 0.02em;
+    margin-bottom: 0.75rem;
+  }
+</style>

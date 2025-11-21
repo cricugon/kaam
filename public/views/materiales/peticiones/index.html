@@ -1,7 +1,8 @@
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
-    <h5>Peticiones de material</h5>
-  </div>
+  <h5>Peticiones de material</h5>
+  <button class="btn btn-primary btn-sm d-none" id="nuevaPeticionMaterialBtn">+ Nueva petición</button>
+</div>
   <div class="card-body">
     <table class="table table-striped" id="tablaPeticionesMaterial">
       <thead>
@@ -16,5 +17,33 @@
       </thead>
       <tbody></tbody>
     </table>
+  </div>
+</div>
+<div class="modal fade" id="modalFirma" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Firmar petición</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <canvas id="firmaCanvas" width="400" height="200" style="border:1px solid #ccc;"></canvas>
+        <div class="mt-2 d-flex gap-2">
+          <button class="btn btn-light" id="btnLimpiarFirma">Limpiar</button>
+          <button class="btn btn-primary ms-auto" id="btnGuardarFirma">Guardar firma</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="modalVerFirma" class="firma-modal">
+  <div class="firma-modal__content">
+    <div class="firma-modal__header">
+      <h5>Firma registrada</h5>
+      <button type="button" id="btnCerrarVerFirma" class="btn-close">&times;</button>
+    </div>
+    <div class="firma-modal__body text-center">
+      <img id="imgFirmaRegistrada" alt="Firma" style="max-width:100%; border:1px solid #ccc;">
+    </div>
   </div>
 </div>

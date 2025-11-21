@@ -3,5 +3,6 @@ module.exports = {
   proyectos: true,
   pedidos: true,       // incluye albaranes
   trabajadores: true,
-  materiales: true
+  materiales: true,
+  fichajes: true
 };

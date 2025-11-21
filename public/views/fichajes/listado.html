@@ -1,0 +1,67 @@
+<div class="card mb-4">
+  <div class="card-body">
+    <form id="filtrosListadoFichajes" class="row g-3 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label">Desde</label>
+        <input type="date" class="form-control" name="desde">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Hasta</label>
+        <input type="date" class="form-control" name="hasta">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Tipo</label>
+        <select class="form-select" name="tipo">
+          <option value="">Todos</option>
+          <option value="Trabajo">Trabajo</option>
+          <option value="Comida">Comida</option>
+          <option value="Descanso">Descanso</option>
+          <option value="Ausencia">Ausencia</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Buscar texto</label>
+        <input type="text" class="form-control" name="buscar" placeholder="Cliente, obra...">
+      </div>
+      <div class="col-md-3 ms-md-auto d-flex gap-2">
+        <button class="btn btn-primary flex-fill" id="btnBuscarListado" type="submit">
+          <svg class="icon me-1"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-magnifying-glass"></use></svg>
+          Buscar
+        </button>
+        <button class="btn btn-outline-secondary flex-fill" id="btnResetFiltros" type="button">Limpiar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Histórico de fichajes</h5>
+    <div>
+      <small class="text-muted text-uppercase d-block">Tiempo acumulado</small>
+      <span class="badge bg-success-subtle text-success" id="totalHorasListado">00:00:00</span>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0" id="tablaListadoFichajes">
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Fecha</th>
+            <th>Inicio</th>
+            <th>Fin</th>
+            <th>Tiempo</th>
+            <th>Cliente</th>
+            <th>Obra</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">Aplica un filtro para ver resultados</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

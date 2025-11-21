@@ -94,24 +94,43 @@
             Trabajadores
           </a>
         </li>
-        <li class="nav-item nav-group">
-          <a class="nav-link nav-group-toggle" href="#">
-            <svg class="nav-icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-layers"></use></svg>
-            Materiales
-          </a>
-          <ul class="nav-group-items">
+        <li class="nav-item">
+          <button class="nav-link w-100 d-flex align-items-center justify-content-between" id="toggleMateriales">
+            <span>
+              <svg class="nav-icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-layers"></use></svg>
+              Materiales
+            </span>
+            <span class="small" id="toggleMaterialesIcon">▾</span>
+          </button>
+          <ul class="nav flex-column ms-3 collapse" id="materialesSubmenu">
             <li class="nav-item">
-              <a class="nav-link" href="#" data-view="materiales">
-                <span class="nav-icon"></span> Catalogo
-              </a>
+              <a class="nav-link" href="#" data-view="materiales">Catálogo</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="#" data-view="materiales/peticiones/index">
-                <span class="nav-icon"></span> Peticiones
-              </a>
+              <a class="nav-link" href="#" data-view="materiales/peticiones/index">Peticiones</a>
             </li>
           </ul>
         </li>
+        <li class="nav-item" id="menuFichajes">
+          <button class="nav-link w-100 d-flex align-items-center justify-content-between" id="toggleFichajes">
+            <span>
+              <svg class="nav-icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-av-timer"></use></svg>
+              Fichajes
+            </span>
+            <span class="small" id="toggleFichajesIcon">▼</span>
+          </button>
+          <ul class="nav flex-column ms-3 collapse" id="fichajesSubmenu">
+            <li class="nav-item">
+              <a class="nav-link" href="#" data-view="fichajes/fichar">Fichar</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" data-view="fichajes/listado">Consultar listado</a>
+            </li>
+          </ul>
+        </li>
+
+
+
 
 
 
@@ -277,12 +296,106 @@
     <script src="vendors/chart.js/js/chart.umd.js"></script>
     <script src="vendors/@coreui/chartjs/js/coreui-chartjs.js"></script>
     <script src="vendors/@coreui/utils/js/index.js"></script>
+    <script src="vendors/@coreui/coreui/js/coreui.bundle.min.js"></script>
+    <script src="vendors/simplebar/js/simplebar.min.js"></script>
     <script src="js/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+
     <script src="js/dashboard.js"></script>
     <script>
 
 </script>
 
+<style>#materialesSubmenu {
+  display: none;
+}
+#materialesSubmenu.show {
+  display: block;
+}
+#toggleMateriales {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  color: inherit;
+  font-weight: 400;
+  padding: 0.8445rem 1rem;
+  background: none;
+  border: none;
+  text-align: left;
+}
+#toggleMateriales.nav-link {
+  color: inherit;
+  font-weight: 400;
+  padding: 0.8445rem 1rem;
+  width: 100%;
+  text-align: left;
+}
+#toggleMateriales svg {
+  width: 1rem;
+  height: 1rem;
+}
+#toggleMateriales:focus {
+  outline: none;
+}
+#toggleMateriales:hover {
+  color: var(--cui-sidebar-nav-link-hover-color, #fff);
+  background-color: var(--cui-sidebar-nav-link-hover-bg, rgba(255,255,255,0.05));
+}
+#toggleMaterialesIcon {
+  font-size: 0.75rem;
+}
+#toggleMateriales span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.firma-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.firma-modal.is-open {
+  display: flex;
+}
+.firma-modal__content {
+  background: #fff;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  width: min(500px, 90%);
+}
+#toggleFichajes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  color: inherit;
+  font-weight: 400;
+  padding: 0.8445rem 1rem;
+  background: none;
+  border: 0;
+}
+#toggleFichajes svg {
+  width: 1rem;
+  height: 1rem;
+}
+#toggleFichajes:hover {
+  color: var(--cui-sidebar-nav-link-hover-color, #fff);
+  background-color: var(--cui-sidebar-nav-link-hover-bg, rgba(255,255,255,0.05));
+}
+#toggleFichajesIcon {
+  font-size: 0.75rem;
+}
+#toggleFichajes span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 
+</style>
   </body>
 </html>

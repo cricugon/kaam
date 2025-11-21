@@ -14412,3 +14412,59 @@ textarea.form-control-lg {
 }
 
 /*# sourceMappingURL=style.css.map */
+#toggleFichajes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  color: inherit;
+  font-weight: 400;
+  padding: 0.8445rem 1rem;
+  background: none;
+  border: 0;
+}
+#toggleFichajes svg {
+  width: 1rem;
+  height: 1rem;
+}
+#toggleFichajes:hover {
+  color: var(--cui-sidebar-nav-link-hover-color, #fff);
+  background-color: var(--cui-sidebar-nav-link-hover-bg, rgba(255,255,255,0.05));
+}
+#toggleFichajesIcon {
+  font-size: 0.75rem;
+}
+#toggleFichajes span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+#estadoFichajeCard {
+  border: 1px solid rgba(31,46,77,.1);
+  border-radius: 1rem;
+  background: linear-gradient(135deg,#f8fbff 0%,#eef3ff 100%);
+}
+#btnToggleFichaje.btn-lg,
+#btnStopFichaje.btn-lg {
+  min-width: 190px;
+  font-weight: 600;
+}
+#estadoFichajeEtiqueta { text-transform: capitalize; }
+.fichajes-acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.btn-fichaje-option {
+  flex: 1 1 150px;
+  border: 1px solid rgba(31, 46, 77, 0.1);
+  border-radius: 0.75rem;
+  background: #f5f7fb;
+  color: #1f2e4d;
+  font-weight: 600;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+.btn-fichaje-option.active {
+  background: #1f2e4d;
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(31, 46, 77, 0.15);
+}
+.btn-fichaje-option svg { width: 1.1rem; height: 1.1rem; margin-right: 0.35rem; }
