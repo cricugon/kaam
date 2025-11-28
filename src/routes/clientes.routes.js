@@ -15,8 +15,13 @@ router.get('/', verifyToken, authorizeRoles('admin', 'editor'), async (_req, res
   } catch (err) { return fail(res, 500, err.message); }
 });
 /** Buscar clientes por texto (para autocompletado) */
-router.get('/buscar', verifyToken, authorizeRoles('admin', 'editor'), async (req, res) => {
+router.get('/buscar', verifyToken, async (req, res) => {
   try {
+    const role = (req.user?.rol || '').toLowerCase();
+    if (!['admin', 'editor', 'trabajador'].includes(role)) {
+      return fail(res, 403, 'No tienes permisos suficientes');
+    }
+
     const texto = req.query.texto || "";
 
     const clientes = await Cliente.findAll({

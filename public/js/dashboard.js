@@ -101,6 +101,8 @@ async function navigateTo(view, headers, push = true) {
     
     if (view === 'fichajes/fichar') await initFichajesFichar(headers);
     if (view === 'fichajes/listado') await initFichajesListado(headers);
+    if (view === 'fichajes/pausas') await initFichajesPausas(headers);
+    if (view === 'fichajes/motivos') await initFichajesMotivos(headers);
 
 
 
@@ -1388,7 +1390,132 @@ function formatDuration(totalSeconds = 0) {
 }
 
 async function initFichajesFichar(headers) {
+
+
+  const dropdownProyectos = document.getElementById('dropdownProyectosFichaje');
+const dropdownPausas = document.getElementById('dropdownPausasFichaje');
+
+let motivosPausa = [];
+
+const cargarMotivosPausa = async () => {
+  const res = await fetch('/api/fichajes/motivos', { credentials: 'same-origin' });
+  const json = await res.json();
+  motivosPausa = (json.data || []).filter(m => m.activo);
+};
+
+const renderMotivosPausa = () => {
+  dropdownPausas.innerHTML = motivosPausa.length
+    ? motivosPausa.map(m => `<li><button class="dropdown-item motivo-pausa" data-motivo="${m.nombre}">${m.nombre}</button></li>`).join('')
+    : '<li><span class="dropdown-item text-muted">Sin motivos</span></li>';
+  dropdownPausas.querySelectorAll('.motivo-pausa').forEach(btn =>
+    btn.addEventListener('click', () => pausarConMotivo(btn.dataset.motivo))
+  );
+};
+  await cargarMotivosPausa();
+renderMotivosPausa();
+let proyectosCache = [];
+const reanudarFichaje = async () => {
+  try {
+    const res = await fetchJSON('/api/fichajes/reanudar', { method: 'POST' });
+    if (!res.success) throw new Error(res.message);
+    closeDropdowns();           // si tienes este helper
+    lockNonWorkButtons(true);
+    lockWorkButton(true);
+    await findActive();
+    await cargarActividad();
+  } catch (err) {
+    alert(err.message || 'No se pudo reanudar el fichaje');
+  }
+};
+
+const pausarConMotivo = async (motivo) => {
+  try {
+    const res = await fetchJSON('/api/fichajes/pausar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ motivo })
+    });
+    if (!res.success) throw new Error(res.message);
+    closeDropdowns();           // si tienes este helper, úsalo para cerrar el menú
+    lockNonWorkButtons(true);
+    lockWorkButton(true);
+    await findActive();
+    await cargarActividad();
+  } catch (err) {
+    alert(err.message || 'No se pudo pausar el fichaje');
+  }
+};
+
+
+
+const closeDropdowns = () => {
+  dropdownProyectos?.classList.remove('show');
+  dropdownPausas?.classList.remove('show');
+  btnToggle?.setAttribute('aria-expanded', 'false');
+};
+
+const setBotonModo = (modo) => {
+  if (modo === 'iniciar') {
+    btnToggle.innerHTML = '<svg class="icon me-2"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-media-play"></use></svg>Iniciar fichaje';
+    dropdownProyectos?.classList.remove('d-none');
+    dropdownPausas?.classList.add('d-none');
+  } else if (modo === 'pausar') {
+    btnToggle.innerHTML = '<svg class="icon me-2"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-media-pause"></use></svg>Pausar';
+    dropdownProyectos?.classList.add('d-none');
+    dropdownPausas?.classList.remove('d-none');
+  } else if (modo === 'reanudar') {
+    btnToggle.innerHTML = '<svg class="icon me-2"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-media-play"></use></svg>Reanudar';
+    dropdownProyectos?.classList.add('d-none');
+    dropdownPausas?.classList.add('d-none');
+  }
+  closeDropdowns();
+};
+
+const cargarProyectos = async () => {
+  const res = await fetch('/api/proyectos/listado-simple', { credentials: 'same-origin' });
+  const json = await res.json();
+  const proyectos = json.data || [];
+  dropdownProyectos.innerHTML = proyectos.length
+    ? proyectos.map(p => `<li><button class="dropdown-item proyecto-opcion" data-id="${p.id}">${p.nombreproyecto || 'Proyecto #' + p.id}${p.cliente?.nombrefiscal ? ' · ' + p.cliente.nombrefiscal : ''}</button></li>`).join('')
+    : '<li><span class="dropdown-item text-muted">Sin proyectos</span></li>';
+
+  dropdownProyectos.querySelectorAll('.proyecto-opcion').forEach(btn => {
+    btn.addEventListener('click', () => iniciarFichajeConProyecto(btn.dataset.id));
+  });
+};
+await cargarProyectos();
+
+
   const form = document.getElementById('formNuevoFichaje');
+  const closeProyectosDropdown = () => {
+  dropdownProyectos?.classList.remove('show');
+  btnToggle?.setAttribute('aria-expanded', 'false');
+};
+  const iniciarFichajeConProyecto = async (idProyecto) => {
+  try {
+    const payload = {
+      descripcion: 'Trabajo',
+      fecha: form?.fecha?.value || null,
+      idobra: Number(idProyecto) || null,
+      coord_latitud: form?.coord_latitud?.value || ubicacionActual?.lat || null,
+      coord_longitud: form?.coord_longitud?.value || ubicacionActual?.lng || null
+    };
+    const res = await fetchJSON('/api/fichajes/iniciar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.success) throw new Error(res.message);
+    closeProyectosDropdown();
+    lockNonWorkButtons(true);
+    lockWorkButton(true);
+    await findActive();
+    await cargarActividad();
+  } catch (err) {
+    alert(err.message || 'No se pudo iniciar el fichaje');
+  }
+};
+
   const tablaBody = document.getElementById('actividadRecienteBody');
   if (!form || !tablaBody) return;
 
@@ -1401,8 +1528,7 @@ async function initFichajesFichar(headers) {
   let fichajeState = { activo: null, pausaActiva: null };
   let fichajeTimer = null;
 
-  const tipoButtons = document.querySelectorAll('[data-fichaje-tipo]');
-  const descripcionInput = document.getElementById('descripcionSeleccionada');
+
   const fechaTitulo = document.getElementById('tituloDiaFichajes');
   const totalDiaEl = document.getElementById('totalDiaFichajes');
   const resumenActividad = document.getElementById('resumenActividadActual');
@@ -1413,37 +1539,73 @@ async function initFichajesFichar(headers) {
   const resetBtn = document.getElementById('btnResetFichaje');
   const btnToggle = document.getElementById('btnToggleFichaje');
   const btnStop = document.getElementById('btnStopFichaje');
-  const clienteInput = document.getElementById('clienteAutocomplete');
-  const clienteHidden = document.getElementById('clienteSeleccionado');
-  const datalistClientes = document.getElementById('clientesData');
-  const obraInput = document.getElementById('obraAutocomplete');
-  const obraHidden = document.getElementById('obraSeleccionada');
-  const datalistObras = document.getElementById('obrasData');
+
 
   const fetchJSON = async (url, options = {}) => {
     const res = await fetch(url, { credentials: 'same-origin', ...options });
     return res.json();
   };
 
-  const setDefaults = () => {
-    const now = new Date();
-    if (!form.fecha.value) form.fecha.value = now.toISOString().slice(0, 10);
-    fechaTitulo.textContent = formatDateLong(form.fecha.value);
+  const lockNonWorkButtons = (locked) => {
+    
   };
+  const lockWorkButton = (locked) => {
+  
+  };
+  lockNonWorkButtons(true);
+  lockWorkButton(false);
+
+  const setDefaults = () => {
+    let now = new Date();
+    now = now.toISOString().slice(0, 10);
+    fechaTitulo.textContent = formatDateLong(now);
+  
+
+  };
+let ubicacionActual = { lat: null, lng: null };
+
+const renderMapa = (mensaje) => {
+  const mapDiv = document.getElementById('mapaFichaje');
+  if (!mapDiv) return;
+  if (!ubicacionActual.lat || !ubicacionActual.lng) {
+    mapDiv.innerHTML = `<p class="text-center text-muted py-5 mb-0">${mensaje || 'Sin ubicación'}</p>`;
+    return;
+  }
+  mapDiv.innerHTML =
+    `<iframe width="100%" height="260" style="border:0;" loading="lazy" allowfullscreen
+      src="https://maps.google.com/maps?q=${ubicacionActual.lat},${ubicacionActual.lng}&z=16&output=embed"></iframe>`;
+  // guarda en los campos hidden por si los usas en el payload
+  if (form.coord_latitud) form.coord_latitud.value = ubicacionActual.lat;
+  if (form.coord_longitud) form.coord_longitud.value = ubicacionActual.lng;
+};
+
+const precargarUbicacion = () => {
+  const mapDiv = document.getElementById('mapaFichaje');
+  if (mapDiv) mapDiv.innerHTML = '<p class="text-center text-muted py-5 mb-0">Obteniendo ubicación...</p>';
+  if (!navigator.geolocation) {
+    renderMapa('Tu navegador no soporta geolocalización');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      ubicacionActual = {
+        lat: pos.coords.latitude.toFixed(6),
+        lng: pos.coords.longitude.toFixed(6)
+      };
+      renderMapa();
+    },
+    err => renderMapa(`No se pudo obtener ubicación: ${err.message}`),
+    { enableHighAccuracy: true, timeout: 8000 }
+  );
+};
+
+
   setDefaults();
+  precargarUbicacion();
+btnCapturarUbicacion?.addEventListener('click', precargarUbicacion);
 
-  tipoButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tipoButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      descripcionInput.value = btn.dataset.fichajeTipo;
-    });
-  });
 
-  form.fecha.addEventListener('change', () => {
-    fechaTitulo.textContent = formatDateLong(form.fecha.value);
-    cargarActividad();
-  });
+
   resetBtn?.addEventListener('click', () => setTimeout(setDefaults, 0));
 
   btnUbicacion?.addEventListener('click', () => {
@@ -1466,39 +1628,9 @@ async function initFichajesFichar(headers) {
     );
   });
 
-  const cargarClientes = async () => {
-    try {
-      const res = await fetchJSON('/api/clientes/buscar?texto=');
-      const items = res.data || [];
-      datalistClientes.innerHTML = items.map(c => `<option value="${c.nombrefiscal}" data-id="${c.id}"></option>`).join('');
-    } catch (err) {
-      console.error('No se pudieron cargar clientes', err);
-      datalistClientes.innerHTML = '';
-    }
-  };
-  const cargarObras = async () => {
-    try {
-      const res = await fetchJSON('/api/proyectos/buscar?texto=');
-      const items = res.data || [];
-      datalistObras.innerHTML = items.map(o => `<option value="${o.nombreproyecto}" data-id="${o.id}"></option>`).join('');
-    } catch (err) {
-      console.error('No se pudieron cargar obras', err);
-      datalistObras.innerHTML = '';
-    }
-  };
-  clienteInput?.addEventListener('change', () => {
-    const opt = Array.from(datalistClientes.options).find(o => o.value === clienteInput.value);
-    clienteHidden.value = opt?.dataset.id || '';
-  });
-  obraInput?.addEventListener('change', () => {
-    const opt = Array.from(datalistObras.options).find(o => o.value === obraInput.value);
-    obraHidden.value = opt?.dataset.id || '';
-  });
-  try {
-    await Promise.all([cargarClientes(), cargarObras()]);
-  } catch (err) {
-    console.error('Error inicializando autocompletados de fichajes', err);
-  }
+
+
+
 
   const findActive = async () => {
     const res = await fetchJSON(`/api/fichajes/trabajador/${trabajadorId}/activo`);
@@ -1513,16 +1645,26 @@ async function initFichajesFichar(headers) {
     if (!etiqueta || !btnToggle) return;
 
     if (!fichajeState.activo) {
+       setBotonModo('iniciar');
       etiqueta.textContent = 'Sin fichaje activo';
-      detalle.textContent = 'Pulsa “Iniciar fichaje” para comenzar tu jornada.';
+      detalle.textContent = 'Pulsa "Iniciar fichaje" para comenzar tu jornada.';
       btnToggle.innerHTML = '<svg class="icon me-2"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-media-play"></use></svg>Iniciar fichaje';
       btnToggle.classList.remove('btn-warning', 'btn-success');
       btnToggle.classList.add('btn-primary');
       btnStop?.classList.add('d-none');
+
+      // deja preparado Trabajo como siguiente selección
+   
+      
+
+      lockNonWorkButtons(true);
+      lockWorkButton(false);
       clearInterval(fichajeTimer);
       fichajeTimer = null;
+      let actividadCache = [];
       return;
     }
+
 
     const desc = fichajeState.activo.descripcion || 'Trabajo';
     const horaIni = fichajeState.activo.hora_inicio;
@@ -1533,60 +1675,79 @@ async function initFichajesFichar(headers) {
     btnStop?.classList.remove('d-none');
 
     if (pausado) {
+       setBotonModo('reanudar');
       btnToggle.innerHTML = '<svg class="icon me-2"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-media-play"></use></svg>Reanudar';
       btnToggle.classList.remove('btn-warning');
       btnToggle.classList.add('btn-success');
+      // En pausa no se puede cambiar el motivo: bloquear todos
+      lockNonWorkButtons(true);
+      lockWorkButton(true);
     } else {
+        setBotonModo('pausar');
+
       btnToggle.innerHTML = '<svg class="icon me-2"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-media-pause"></use></svg>Pausar';
       btnToggle.classList.remove('btn-primary', 'btn-success');
       btnToggle.classList.add('btn-warning');
+
+      // Selecciona siempre Trabajo cuando está en curso
+ 
+      
+
+      // Fichaje en curso: Trabajo bloqueado, motivos de pausa disponibles
+      lockNonWorkButtons(false);
+      lockWorkButton(true);
     }
 
-    if (!fichajeTimer) fichajeTimer = setInterval(() => actualizarTotal(), 1000);
+
+    if (!fichajeTimer) fichajeTimer = setInterval(() => actualizarTotal(actividadCache), 1000);
+
   }
 
-  const buildPayloadFromForm = () => ({
-    descripcion: descripcionInput.value,
-    fecha: form.fecha.value || null,
-    idcliente: clienteHidden.value ? Number(clienteHidden.value) : null,
-    idobra: obraHidden.value ? Number(obraHidden.value) : null,
-    coord_latitud: form.coord_latitud.value || null,
-    coord_longitud: form.coord_longitud.value || null
-  });
+const buildPayloadFromForm = () => ({
+  descripcion: 'Trabajo',
+  fecha: form.fecha.value || null,
+  idobra: null, // el inicio real se hace desde el dropdown de proyectos
+  coord_latitud: (ubicacionActual?.lat) || form.coord_latitud.value || null,
+  coord_longitud: (ubicacionActual?.lng) || form.coord_longitud.value || null
+});
 
-  btnToggle?.addEventListener('click', async () => {
-    try {
-      if (!fichajeState.activo) {
-        const payload = buildPayloadFromForm();
-        const res = await fetchJSON('/api/fichajes/iniciar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (!res.success) throw new Error(res.message);
-      } else if (fichajeState.pausaActiva) {
-        const res = await fetchJSON('/api/fichajes/reanudar', { method: 'POST' });
-        if (!res.success) throw new Error(res.message);
-      } else {
-        const res = await fetchJSON('/api/fichajes/pausar', { method: 'POST' });
-        if (!res.success) throw new Error(res.message);
-      }
-      await findActive();
-      await cargarActividad();
-    } catch (err) {
-      alert(err.message || 'No se pudo actualizar el fichaje.');
-    }
-  });
+
+  btnToggle?.addEventListener('click', () => {
+  // si estamos en modo iniciar => toggle de proyectos
+  if (!fichajeState.activo) {
+    dropdownProyectos?.classList.toggle('show');
+    btnToggle.setAttribute('aria-expanded', dropdownProyectos.classList.contains('show'));
+    return;
+  }
+  // si estamos en modo pausar => toggle de motivos
+  if (fichajeState.activo && !fichajeState.pausaActiva) {
+    dropdownPausas?.classList.toggle('show');
+    btnToggle.setAttribute('aria-expanded', dropdownPausas.classList.contains('show'));
+    return;
+  }
+  // si estamos en modo reanudar => reanudar directamente
+  if (fichajeState.pausaActiva) reanudarFichaje();
+});
 
   btnStop?.addEventListener('click', async () => {
     if (!confirm('¿Seguro que quieres finalizar el fichaje actual?')) return;
-    const res = await fetchJSON('/api/fichajes/parar', { method: 'POST' });
-    if (!res.success) {
-      alert(res.message || 'No se pudo cerrar el fichaje');
-      return;
-    }
-    await findActive();
-    await cargarActividad();
+    // usa ubicacionActual si la tienes; si no, pide geolocalización rápida
+      let latFin = ubicacionActual?.lat || null;
+      let lngFin = ubicacionActual?.lng || null;
+    const res = await fetchJSON('/api/fichajes/parar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      coord_latitud_fin: latFin,
+      coord_longitud_fin: lngFin
+    })
+  });
+  if (!res.success) {
+    alert(res.message || 'No se pudo cerrar el fichaje');
+    return;
+  }
+  await findActive();
+  await cargarActividad();
   });
 
   function formatDuration(totalSeconds = 0) {
@@ -1597,22 +1758,21 @@ async function initFichajesFichar(headers) {
     return `${hh}:${mm}:${ss}`;
   }
   function secondsFromFichaje(item = {}) {
-  if (!item) return 0;
-  const toSec = t => {
-    const [h=0,m=0,s=0] = (t || '0:0:0').split(':').map(Number);
-    return h*3600 + m*60 + s;
-  };
-  if (!item.hora_inicio) return 0;
-  const nowStr = new Date().toTimeString().slice(0,8); // HH:MM:SS
-  const endSeconds = item.hora_fin ? toSec(item.hora_fin) : toSec(nowStr);
-  let total = endSeconds - toSec(item.hora_inicio);
-  (item.pausas || []).forEach(p => {
-    if (!p.hora_inicio || !p.hora_fin) return;
-    total -= (toSec(p.hora_fin) - toSec(p.hora_inicio));
-  });
-  return Math.max(0, total);
-}
-
+    if (!item || !item.hora_inicio) return 0;
+    const toSec = t => {
+      const [h=0,m=0,s=0] = (t || '0:0:0').split(':').map(Number);
+      return h*3600 + m*60 + s;
+    };
+    const nowStr = new Date().toTimeString().slice(0,8);
+    const endSeconds = item.hora_fin ? toSec(item.hora_fin) : toSec(nowStr);
+    let total = endSeconds - toSec(item.hora_inicio);
+    (item.pausas || []).forEach(p => {
+      if (!p.hora_inicio) return;
+      const fin = p.hora_fin || nowStr; // si la pausa está abierta, descuenta hasta ahora
+      total -= Math.max(0, toSec(fin) - toSec(p.hora_inicio));
+    });
+    return Math.max(0, total);
+  }
 
   async function cargarActividad() {
     tablaBody.innerHTML = `<tr><td colspan="5" class="text-center py-4"><span class="spinner-border"></span></td></tr>`;
@@ -1630,7 +1790,7 @@ async function initFichajesFichar(headers) {
     tablaBody.innerHTML = items.slice(0, 10).map(f => `
       <tr>
         <td>
-          <div class="fw-semibold">${f.descripcion || '—'}</div>
+          <div class="fw-semibold">${f.descripcion || '-'}</div>
           <small class="text-muted">${formatDateShort(f.fecha)}</small>
         </td>
         <td>${f.hora_inicio || '--:--'}</td>
@@ -1647,23 +1807,28 @@ async function initFichajesFichar(headers) {
     resumenActividad.innerHTML = `
       <div class="d-flex align-items-center justify-content-between">
         <div>
-          <p class="mb-0 fw-semibold">${ultimo.descripcion || '—'}</p>
+          <p class="mb-0 fw-semibold">${ultimo.descripcion || '-'}</p>
           <small class="text-muted">${formatDateShort(ultimo.fecha)} · ${ultimo.hora_inicio || '--:--'} - ${ultimo.hora_fin || '--:--'}</small>
         </div>
         <span class="badge bg-success">${formatDuration(secondsFromFichaje(ultimo))}</span>
       </div>
     `;
 
-    actualizarTotal(items);
+    
+    actividadCache = items;
+    actualizarTotal(actividadCache);
   }
 
   function actualizarTotal(items = []) {
-    const list = items.length ? items : JSON.parse(sessionStorage.getItem('fichajesCache') || '[]');
-    const totalHoy = list
-      .filter(f => f.fecha === form.fecha.value)
-      .reduce((acc, f) => acc + secondsFromFichaje(f), 0);
-    totalDiaEl.textContent = formatDuration(totalHoy);
-  }
+  const list = (items && items.length) ? items : actividadCache;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const totalHoy = list
+    .filter(f => f.fecha === hoy)
+    .reduce((acc, f) => acc + secondsFromFichaje(f), 0);
+  totalDiaEl.textContent = formatDuration(totalHoy);
+}
+
+
 
   btnRefrescar?.addEventListener('click', e => {
     e.preventDefault();
@@ -1676,59 +1841,151 @@ async function initFichajesFichar(headers) {
 }
 
 
+
+
+
+
 async function initFichajesListado(headers) {
   const tablaBody = document.querySelector('#tablaListadoFichajes tbody');
   const totalEl = document.getElementById('totalHorasListado');
   const filtros = document.getElementById('filtrosListadoFichajes');
+    const selectTrab = document.getElementById('selectTrabajadorListado');
+  const selectTrabWrapper = document.getElementById('selectTrabajadorWrapper');
+
   if (!tablaBody || !filtros) return;
 
   let dataset = [];
+    const loadTrabajadores = async () => {
+    if (!selectTrab) return;
+    const res = await fetch('/api/trabajadores', { credentials: 'same-origin' });
+    const json = await res.json();
+    const list = json.data || [];
+    selectTrab.innerHTML = '<option value="">-- Selecciona trabajador --</option>' +
+      list.map(t => `<option value="${t.id}">${t.nombrefiscal || `Trabajador #${t.id}`}</option>`).join('');
+  };
 
-  const cargar = async () => {
-    let url = '/api/fichajes';
+
+  const workedSeconds = (item = {}) => {
+    if (!item.hora_inicio) return 0;
+    const toSec = t => {
+      const [h = 0, m = 0, s = 0] = (t || '0:0:0').split(':').map(Number);
+      return h * 3600 + m * 60 + s;
+    };
+    const nowStr = new Date().toTimeString().slice(0, 8);
+    const endSeconds = item.hora_fin ? toSec(item.hora_fin) : toSec(nowStr);
+    let total = endSeconds - toSec(item.hora_inicio);
+    (item.pausas || []).forEach(p => {
+      if (!p.hora_inicio) return;
+      const fin = p.hora_fin || nowStr;
+      total -= Math.max(0, toSec(fin) - toSec(p.hora_inicio));
+    });
+    return Math.max(0, total);
+  };
+
+    const cargar = async () => {
+    // Si es trabajador, siempre su propio listado
     if (currentUserRole === 'trabajador' && currentUser?.idpersonal) {
-      url = `/api/fichajes/trabajador/${currentUser.idpersonal}`;
+      selectTrabWrapper?.classList.add('d-none');
+      const res = await fetch(`/api/fichajes/trabajador/${currentUser.idpersonal}`, { headers, credentials: 'same-origin' });
+      const json = await res.json();
+      dataset = json.data || [];
+      render();
+      return;
     }
-    const res = await fetch(url, { headers, credentials: 'same-origin' });
+
+    // Admin/editor: requiere selección previa
+    selectTrabWrapper?.classList.remove('d-none');
+    if (!selectTrab?.value) {
+      dataset = [];
+      tablaBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Selecciona un trabajador para ver sus fichajes.</td></tr>';
+      totalEl.textContent = '00:00:00';
+      return;
+    }
+
+    const res = await fetch(`/api/fichajes/trabajador/${selectTrab.value}`, { headers, credentials: 'same-origin' });
     const json = await res.json();
     dataset = json.data || [];
     render();
   };
 
+
   const render = () => {
-    const data = Object.fromEntries(new FormData(filtros).entries());
-    let rows = [...dataset];
+  const data = Object.fromEntries(new FormData(filtros).entries());
+  let rows = [...dataset];
 
-    if (data.desde) rows = rows.filter(f => f.fecha && f.fecha >= data.desde);
-    if (data.hasta) rows = rows.filter(f => f.fecha && f.fecha <= data.hasta);
-    if (data.tipo) rows = rows.filter(f => (f.descripcion || '').toLowerCase() === data.tipo.toLowerCase());
-    if (data.buscar) {
-      const term = data.buscar.toLowerCase();
-      rows = rows.filter(f =>
-        [f.descripcion, f.cliente?.nombrefiscal, f.obra?.nombreproyecto]
-          .some(val => (val || '').toLowerCase().includes(term))
-      );
-    }
+  if (data.desde) rows = rows.filter(f => f.fecha && f.fecha >= data.desde);
+  if (data.hasta) rows = rows.filter(f => f.fecha && f.fecha <= data.hasta);
+  if (data.tipo) rows = rows.filter(f => (f.descripcion || '').toLowerCase() === data.tipo.toLowerCase());
 
-    if (!rows.length) {
-      tablaBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No hay fichajes para los filtros seleccionados.</td></tr>';
-    } else {
-      tablaBody.innerHTML = rows.map(f => `
-        <tr>
-          <td>${f.descripcion || '—'}</td>
+  const term = (data.buscar || '').toLowerCase().trim();
+  if (term) {
+    rows = rows.filter(f => {
+      const campos = [
+        f.descripcion,
+        f.fecha,
+        f.hora_inicio,
+        f.hora_fin,
+        f.cliente?.nombrefiscal,
+        f.obra?.nombreproyecto,
+        String(f.id)
+      ].map(v => (v || '').toString().toLowerCase());
+      return campos.some(v => v.includes(term));
+    });
+  }
+
+  if (!rows.length) {
+    tablaBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No hay fichajes para los filtros seleccionados.</td></tr>';
+  } else {
+    tablaBody.innerHTML = rows.map(f => `
+      <tr>
+        <td>${f.descripcion || '-'}</td>
           <td>${formatDateShort(f.fecha)}</td>
-          <td>${f.hora_inicio || '--:--'}</td>
-          <td>${f.hora_fin || '--:--'}</td>
-          <td><span class="badge bg-light text-dark">${formatDuration(secondsFromFichaje(f))}</span></td>
-          <td>${f.cliente?.nombrefiscal || '-'}</td>
+          <td>${f.hora_inicio || '--:--'}
+          ${f.coord_latitud && f.coord_longitud ? `<button class="btn btn-sm btn-link p-0 ms-2 ver-mapa" data-lat="${f.coord_latitud}" data-lng="${f.coord_longitud}" title="Ver ubicación de inicio">
+            <svg class="icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-globe-alt"></use></svg>
+          </button>` : ''}
+          </td>
+          <td>${f.hora_fin || '--:--'}
+           ${f.coord_latitud_fin && f.coord_longitud_fin ? `<button class="btn btn-sm btn-link p-0 ms-2 ver-mapa" data-lat="${f.coord_latitud_fin}" data-lng="${f.coord_longitud_fin}" title="Ver ubicación de fin">
+            <svg class="icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-globe-alt"></use></svg>
+          </button>` : ''}
+          </td>
+          <td><span class="badge bg-light text-dark">${formatDuration(workedSeconds(f))}</span></td>
+          
           <td>${f.obra?.nombreproyecto || '-'}</td>
-        </tr>
+          <td>
+            <button class="btn btn-sm btn-link p-0 text-decoration-none ver-pausas" data-id="${f.id}">
+              Ver pausas (${(f.pausas?.length || 0)})
+          </button>
+        </td>
+      </tr>
       `).join('');
     }
 
-    const totalSeconds = rows.reduce((acc, item) => acc + secondsFromFichaje(item), 0);
+    const totalSeconds = rows.reduce((acc, item) => acc + workedSeconds(item), 0);
     totalEl.textContent = formatDuration(totalSeconds);
-  };
+
+  // Engancha aquí los clicks
+  tablaBody.querySelectorAll('.ver-pausas').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      sessionStorage.setItem('fichajePausasId', id);
+      await navigateTo('fichajes/pausas', headers);
+    });
+  });
+  tablaBody.querySelectorAll('.ver-mapa').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const { lat, lng } = btn.dataset;
+    if (!lat || !lng) return;
+        window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank', 'noopener');
+
+  });
+});
+};
+
+
+
+
 
   filtros.addEventListener('submit', e => {
     e.preventDefault();
@@ -1741,24 +1998,217 @@ async function initFichajesListado(headers) {
     filtros.reset();
     render();
   });
+  if (currentUserRole !== 'trabajador') {
+    await loadTrabajadores();
+    selectTrab?.addEventListener('change', cargar);
+  }
 
   await cargar();
+}
+async function initFichajesPausas(headers) {
+  const id = sessionStorage.getItem('fichajePausasId');
+  const body = document.getElementById('tablaPausasBody');
+  const label = document.getElementById('pausasFichajeId');
+  const btnVolver = document.getElementById('btnVolverListadoPausas');
+  if (!id || !body || !label) return;
+  label.textContent = id;
+  btnVolver?.addEventListener('click', () => navigateTo('fichajes/listado', headers));
+  body.innerHTML = `<tr><td colspan="5" class="text-center py-4"><span class="spinner-border"></span></td></tr>`;
+  const res = await fetch(`/api/fichajes/${id}`, { credentials: 'same-origin' });
+  const json = await res.json();
+  const pausas = json.data?.pausas || [];
+  if (!pausas.length) {
+    body.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Sin pausas</td></tr>';
+    return;
+  }
+  const toSec = t => { const [h=0,m=0,s=0]=t.split(':').map(Number); return h*3600+m*60+s; };
+  body.innerHTML = pausas.map(p => {
+    const dur = (p.hora_inicio && p.hora_fin) ? toSec(p.hora_fin) - toSec(p.hora_inicio) : 0;
+    const hh = String(Math.floor(dur/3600)).padStart(2,'0');
+    const mm = String(Math.floor((dur%3600)/60)).padStart(2,'0');
+    const ss = String(dur%60).padStart(2,'0');
+    return `
+      <tr>
+        <td>${p.fecha || '-'}</td>
+        <td>${p.hora_inicio || '--:--'}</td>
+        <td>${p.hora_fin || '--:--'}</td>
+        <td>${p.motivo || '-'}</td>
+        <td><span class="badge bg-light text-dark">${hh}:${mm}:${ss}</span></td>
+      </tr>
+    `;
+  }).join('');
+}
+async function initFichajesMotivos(headers) {
+  const tabla = document.querySelector('#tablaMotivos tbody');
+  const btnNuevo = document.getElementById('btnNuevoMotivo');
+  if (!tabla) return;
+
+  let motivos = [];
+  const showMotivoModal = ({ titulo, valores = {}, onSave }) => {
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.background = 'rgba(0,0,0,0.45)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '1055';
+
+    const card = document.createElement('div');
+    card.style.background = '#fff';
+    card.style.borderRadius = '12px';
+    card.style.padding = '16px';
+    card.style.width = 'min(420px, 90%)';
+    card.style.boxShadow = '0 20px 50px rgba(0,0,0,0.15)';
+
+    card.innerHTML = `
+      <h6 style="margin-bottom:12px;">${titulo}</h6>
+      <div class="mb-2">
+        <label class="form-label">Nombre</label>
+        <input type="text" class="form-control" id="motivoNombre" value="${valores.nombre || ''}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Orden (opcional)</label>
+        <input type="number" class="form-control" id="motivoOrden" value="${valores.orden ?? ''}">
+      </div>
+      <div class="d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-light" id="motivoCancelar">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="motivoGuardar">Guardar</button>
+      </div>
+    `;
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    card.querySelector('#motivoCancelar').addEventListener('click', close);
+    card.querySelector('#motivoGuardar').addEventListener('click', async () => {
+      const nombre = card.querySelector('#motivoNombre').value.trim();
+      const orden = card.querySelector('#motivoOrden').value;
+      await onSave({ nombre, orden: orden ? Number(orden) : null });
+      close();
+    });
+  };
+
+  const load = async () => {
+    tabla.innerHTML = '<tr><td colspan="4" class="text-center py-4"><span class="spinner-border"></span></td></tr>';
+    const res = await fetch('/api/fichajes/motivos', { credentials: 'same-origin' });
+    const json = await res.json();
+    motivos = json.data || [];
+    render();
+  };
+
+  const render = () => {
+    if (!motivos.length) {
+      tabla.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Sin motivos</td></tr>';
+      return;
+    }
+
+    tabla.innerHTML = motivos.map(m => `
+      <tr>
+        <td>${m.nombre || '-'}</td>
+        <td>
+          <input type="checkbox" class="form-check-input motivo-activo" data-id="${m.id}" ${m.activo ? 'checked' : ''}>
+        </td>
+        <td>${m.orden ?? ''}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-light border btn-editar-motivo" data-id="${m.id}" data-nombre="${m.nombre || ''}" data-orden="${m.orden ?? ''}">
+            <svg class="icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-pencil"></use></svg>
+          </button>
+          <button class="btn btn-sm btn-light border text-danger btn-eliminar-motivo" data-id="${m.id}">
+            <svg class="icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-trash"></use></svg>
+          </button>
+        </td>
+      </tr>
+    `).join('');
+
+    // toggle activo
+    tabla.querySelectorAll('.motivo-activo').forEach(chk => {
+      chk.addEventListener('change', async () => {
+        const id = chk.dataset.id;
+        await fetch(`/api/fichajes/motivos/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...headers },
+          body: JSON.stringify({ activo: chk.checked ? 1 : 0 })
+        });
+        await load();
+      });
+    });
+
+    // editar
+    tabla.querySelectorAll('.btn-editar-motivo').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const nombreActual = btn.dataset.nombre || '';
+        const ordenActual = btn.dataset.orden || '';
+        showMotivoModal({
+          titulo: 'Editar motivo',
+          valores: { nombre: nombreActual, orden: ordenActual },
+          onSave: async ({ nombre, orden }) => {
+            if (!nombre) return;
+            await fetch(`/api/fichajes/motivos/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', ...headers },
+              body: JSON.stringify({ nombre, orden })
+            });
+            await load();
+          }
+        });
+      });
+    });
+
+    // eliminar
+    tabla.querySelectorAll('.btn-eliminar-motivo').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('¿Eliminar motivo?')) return;
+        const id = btn.dataset.id;
+        await fetch(`/api/fichajes/motivos/${id}`, { method: 'DELETE', headers });
+        await load();
+      });
+    });
+  };
+
+  btnNuevo?.addEventListener('click', async () => {
+    showMotivoModal({
+      titulo: 'Nuevo motivo',
+      onSave: async ({ nombre, orden }) => {
+        if (!nombre) return;
+        await fetch('/api/fichajes/motivos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...headers },
+          body: JSON.stringify({ nombre, orden })
+        });
+        await load();
+      }
+    });
+  });
+
+  await load();
 }
 
 // === Cargar vista según hash al abrir página ===
 window.addEventListener('load', async () => {
   await loadModulesConfig();
   await loadCurrentUser();
-  hideMenuForWorker() 
-// después ya usas navigateTo con la vista inicial permitida
-  
-// Llama a hideMenuForWorker() después de loadCurrentUser()
+  hideMotivosForNonAdmin()
+  hideMenuForWorker();
+  hideFicharForNonWorkers && hideFicharForNonWorkers(); // si añadiste este helper
 
   const hash = location.hash.replace('#/', '');
-  const view = hash || 'clientes';
+  const defaultView = hash || (
+    currentUserRole === 'trabajador'
+      ? 'fichajes/fichar'
+      : 'home'
+  );
+
   const headers = {};
-  await navigateTo(view, headers, false);
+  await navigateTo(defaultView, headers, false);
 });
+function hideMotivosForNonAdmin() {
+  const item = document.querySelector('[data-view="fichajes/motivos"]')?.closest('li');
+  if (!item) return;
+  if (!['admin','editor'].includes((currentUserRole||'').toLowerCase())) item.classList.add('d-none');
+}
 function hideMenuForWorker() {
     if (currentUserRole !== 'trabajador') return;
     const prohibidas = ['clientes', 'proyectos', 'pedidos', 'trabajadores', 'materiales'];
@@ -1766,7 +2216,14 @@ function hideMenuForWorker() {
       const v = a.getAttribute('data-view');
       if (prohibidas.includes(v)) a.closest('li')?.classList.add('d-none');
     });
+    
   }
+  function hideFicharForNonWorkers() {
+  const ficharItem = document.querySelector('[data-view="fichajes/fichar"]')?.closest('li');
+  if (!ficharItem) return;
+  if (currentUserRole !== 'trabajador') ficharItem.classList.add('d-none');
+}
+
 // === Logout global ===
 (() => {
   const logoutBtn = document.getElementById('logoutBtn');

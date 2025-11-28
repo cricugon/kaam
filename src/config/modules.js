@@ -4,5 +4,6 @@ module.exports = {
   pedidos: true,       // incluye albaranes
   trabajadores: true,
   materiales: true,
-  fichajes: true
+  fichajes: true,
+  gestorDocumental: true
 };

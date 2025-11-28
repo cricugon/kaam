@@ -4,6 +4,7 @@ const { verifyToken, authorizeRoles } = require('../middleware/auth');
 const { ok, fail } = require('../helpers/responses');
 const Proyecto = require('../models/Proyecto');
 const Cliente = require('../models/Cliente');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
@@ -16,6 +17,45 @@ router.get('/', verifyToken, authorizeRoles('admin', 'editor'), async (_req, res
     });
     return ok(res, proyectos);
   } catch (err) { return fail(res, 500, err.message); }
+});
+// Listado simple para autocompletar (admin/editor/trabajador)
+router.get('/listado-simple', verifyToken, async (req, res) => {
+  const role = (req.user?.rol || '').toLowerCase();
+  if (!['admin', 'editor', 'trabajador'].includes(role)) {
+    return fail(res, 403, 'No tienes permisos suficientes');
+  }
+  try {
+    const proyectos = await Proyecto.findAll({
+      attributes: ['id', 'nombreproyecto'],
+      include: [{ model: Cliente, as: 'cliente', attributes: ['nombrefiscal'] }],
+      order: [['nombreproyecto', 'ASC']]
+    });
+    return ok(res, proyectos);
+  } catch (err) {
+    return fail(res, 500, err.message);
+  }
+});
+/** Buscar proyectos por texto (autocompletado) */
+router.get('/buscar', verifyToken, async (req, res) => {
+  try {
+    const role = (req.user?.rol || '').toLowerCase();
+    if (!['admin', 'editor', 'trabajador'].includes(role)) {
+      return fail(res, 403, 'No tienes permisos suficientes');
+    }
+
+    const texto = req.query.texto || "";
+
+    const proyectos = await Proyecto.findAll({
+      where: { nombreproyecto: { [Op.like]: `%${texto}%` } },
+      limit: 20,
+      order: [['nombreproyecto', 'ASC']],
+      include: [{ model: Cliente, as: 'cliente', attributes: ['id', 'nombrefiscal'] }]
+    });
+
+    return ok(res, proyectos);
+  } catch (err) {
+    return fail(res, 500, err.message);
+  }
 });
 
 /** Obtener proyecto por ID */

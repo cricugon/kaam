@@ -14468,3 +14468,21 @@ textarea.form-control-lg {
   box-shadow: 0 0 0 3px rgba(31, 46, 77, 0.15);
 }
 .btn-fichaje-option svg { width: 1.1rem; height: 1.1rem; margin-right: 0.35rem; }
+#dropdownProyectosFichaje {
+  min-width: 260px;      /* ajusta a tu gusto */
+  max-width: 420px;      /* evita que sea gigante */
+  white-space: normal;   /* permite salto de línea */
+}
+#dropdownProyectosFichaje .dropdown-item {
+  white-space: normal;
+}
+#dropdownProyectosFichaje,
+#dropdownPausasFichaje {
+  min-width: 240px;
+  max-width: 420px;
+  white-space: normal;
+}
+#dropdownProyectosFichaje .dropdown-item,
+#dropdownPausasFichaje .dropdown-item {
+  white-space: normal;
+}

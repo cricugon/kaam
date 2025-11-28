@@ -67,7 +67,7 @@ router.post('/iniciar', verifyToken, async (req, res) => {
 
     const payload = {
       idpersonal,
-      descripcion: req.body.descripcion || 'Trabajo',
+      descripcion: 'Trabajo',
       fecha: req.body.fecha || dayjs().format('YYYY-MM-DD'),
       hora_inicio: req.body.hora_inicio || dayjs().format('HH:mm:ss'),
       idcliente: req.body.idcliente || null,
@@ -97,11 +97,17 @@ router.post('/pausar', verifyToken, async (req, res) => {
     const pausaAbierta = activo.pausas?.find(p => !p.hora_fin);
     if (pausaAbierta) return fail(res, 400, 'Ya existe una pausa activa');
 
+    const motivo = (req.body?.motivo || '').trim() || 'Pausa';
+    if (motivo.toLowerCase() === 'trabajo')
+      return fail(res, 400, 'La pausa no puede ser de tipo Trabajo');
+
     const pausa = await FichajePausa.create({
       idfichaje: activo.id,
       fecha: dayjs().format('YYYY-MM-DD'),
-      hora_inicio: dayjs().format('HH:mm:ss')
+      hora_inicio: dayjs().format('HH:mm:ss'),
+      motivo
     });
+
 
     return ok(res, pausa, 'Fichaje pausado');
   } catch (err) {
@@ -145,14 +151,20 @@ router.post('/parar', verifyToken, async (req, res) => {
     // Cierra pausa abierta si existe
     const pausaActiva = activo.pausas?.find(p => !p.hora_fin);
     if (pausaActiva) {
+      
       await FichajePausa.update(
         { hora_fin: horaFin },
         { where: { id: pausaActiva.id } }
       );
     }
+    const { coord_latitud_fin = null, coord_longitud_fin = null } = req.body || {};
 
     await Fichaje.update(
-      { hora_fin: horaFin },
+      
+      { hora_fin: horaFin,
+        coord_latitud_fin,
+        coord_longitud_fin
+      },
       { where: { id: activo.id } }
     );
 
@@ -202,7 +214,7 @@ router.get('/trabajador/:id', workerProtect, async (req, res) => {
 });
 
 // Obtener un fichaje por ID
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', workerProtect, async (req, res) => {
   try {
     const item = await Fichaje.findByPk(req.params.id, { include: includeModels });
     if (!item) return fail(res, 404, 'Fichaje no encontrado');
