@@ -1,8 +1,8 @@
-<!DOCTYPE html><!--
+﻿<!DOCTYPE html><!--
 * CoreUI - Free Bootstrap Admin Template
 * @version v5.3.0
 * @link https://coreui.io/product/free-bootstrap-admin-template/
-* Copyright (c) 2025 creativeLabs Łukasz Holeczek
+* Copyright (c) 2025 creativeLabs Åukasz Holeczek
 * Licensed under MIT (https://github.com/coreui/coreui-free-bootstrap-admin-template/blob/main/LICENSE)
 -->
 <html lang="en">
@@ -12,7 +12,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <meta name="description" content="CoreUI - Open Source Bootstrap Admin Template">
-    <meta name="author" content="Łukasz Holeczek">
+    <meta name="author" content="Åukasz Holeczek">
     <meta name="keyword" content="Bootstrap,Admin,Template,Open,Source,jQuery,CSS,HTML,RWD,Dashboard">
     <title>Kaam ERP</title>
     <link rel="apple-touch-icon" sizes="57x57" href="assets/favicon/apple-icon-57x57.png">
@@ -57,7 +57,7 @@
         <button class="btn-close d-lg-none" type="button" data-coreui-theme="dark" aria-label="Close" onclick="coreui.Sidebar.getInstance(document.querySelector(&quot;#sidebar&quot;)).toggle()"></button>
       </div>
       <ul class="sidebar-nav" data-coreui="navigation" data-simplebar>
-        <li class="nav-title">Módulos ERP</li>
+        <li class="nav-title">MÃ³dulos ERP</li>
 
         <li class="nav-item">
           <a class="nav-link" href="#" data-view="clientes">
@@ -94,17 +94,31 @@
             Trabajadores
           </a>
         </li>
+        <li class="nav-item" id="menuGestorDoc">
+          <button class="nav-link w-100 d-flex align-items-center justify-content-between" id="toggleGestorDoc">
+            <span>
+              <svg class="nav-icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-folder-open"></use></svg>
+              Gestor documental
+            </span>
+            <span class="small" id="toggleGestorDocIcon">+</span>
+          </button>
+          <ul class="nav flex-column ms-3 collapse" id="gestorDocSubmenu">
+            <li class="nav-item"><a class="nav-link" href="#" data-view="gestor-documental">Listado</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" data-view="gestor-documental/plantilla">Plantilla</a></li>
+          </ul>
+        </li>
+
         <li class="nav-item">
           <button class="nav-link w-100 d-flex align-items-center justify-content-between" id="toggleMateriales">
             <span>
               <svg class="nav-icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-layers"></use></svg>
               Materiales
             </span>
-            <span class="small" id="toggleMaterialesIcon">▾</span>
+            <span class="small" id="toggleMaterialesIcon">â–¾</span>
           </button>
           <ul class="nav flex-column ms-3 collapse" id="materialesSubmenu">
             <li class="nav-item">
-              <a class="nav-link" href="#" data-view="materiales">Catálogo</a>
+              <a class="nav-link" href="#" data-view="materiales">CatÃ¡logo</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="#" data-view="materiales/peticiones/index">Peticiones</a>
@@ -117,7 +131,7 @@
               <svg class="nav-icon"><use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-av-timer"></use></svg>
               Fichajes
             </span>
-            <span class="small" id="toggleFichajesIcon">▼</span>
+            <span class="small" id="toggleFichajesIcon">â–¼</span>
           </button>
           <ul class="nav flex-column ms-3 collapse" id="fichajesSubmenu">
             <li class="nav-item">
@@ -145,7 +159,7 @@
             <svg class="nav-icon">
               <use xlink:href="vendors/@coreui/icons/svg/free.svg#cil-account-logout"></use>
             </svg>
-            Cerrar sesión
+            Cerrar sesiÃ³n
           </a>
         </li>
       </ul>
@@ -275,12 +289,12 @@
       <div class="body flex-grow-1">
         <main class="main">
           <div class="container-fluid mt-4" id="app-content">
-            <h2 class="text-muted">Selecciona un módulo del menú</h2>
+            <h2 class="text-muted">Selecciona un mÃ³dulo del menÃº</h2>
           </div>
         </main>
      </div>
       <footer class="footer px-4">
-        <div><a href="https://coreui.io">CoreUI </a><a href="https://coreui.io/product/free-bootstrap-admin-template/">Bootstrap Admin Template</a> © 2025 creativeLabs.</div>
+        <div><a href="https://coreui.io">CoreUI </a><a href="https://coreui.io/product/free-bootstrap-admin-template/">Bootstrap Admin Template</a> Â© 2025 creativeLabs.</div>
         <div class="ms-auto">Powered by&nbsp;<a href="https://coreui.io/bootstrap/docs/">CoreUI UI Components</a></div>
       </footer>
     </div>
@@ -403,3 +417,4 @@
 </style>
   </body>
 </html>
+
